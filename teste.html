@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Produção TV</title>
+  <meta http-equiv="refresh" content="1800" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: #151515;
+      --panel-2: #1c1c1c;
+      --border: #2b2b2b;
+      --text: #ffffff;
+      --muted: #a3a3a3;
+      --good: #34d399;
+      --bad: #f87171;
+      --accent: #60a5fa;
+      --radius: 28px;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      padding: 28px;
+      background: var(--bg);
+    }
+
+    .slide.active {
+      display: block;
+    }
+
+    .layout {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      gap: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .title {
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      font-size: 22px;
+      color: var(--muted);
+    }
+
+    .timestamp {
+      color: var(--muted);
+      font-size: 18px;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .chart-box {
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .chart-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 18px;
+      background: #0f0f0f;
+    }
+
+    .kpi-grid-3,
+    .kpi-grid-4,
+    .kpi-grid-2 {
+      display: grid;
+      gap: 18px;
+    }
+
+    .kpi-grid-3 { grid-template-rows: repeat(3, 1fr); }
+    .kpi-grid-4 { grid-template-rows: repeat(4, 1fr); }
+    .kpi-grid-2 { grid-template-columns: 1fr 1fr; }
+
+    .kpi {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .kpi-label {
+      font-size: 22px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .kpi-value {
+      font-size: 64px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .kpi-value.medium {
+      font-size: 54px;
+    }
+
+    .kpi.good .kpi-value,
+    .text-good { color: var(--good); }
+
+    .kpi.bad .kpi-value,
+    .text-bad { color: var(--bad); }
+
+    .message {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .message .label {
+      font-size: 20px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .message .value {
+      font-size: 30px;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .footer-note {
+      text-align: right;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .table-wrap {
+      padding: 22px;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 12px;
+      table-layout: fixed;
+    }
+
+    thead th {
+      color: var(--muted);
+      font-size: 22px;
+      text-align: left;
+      padding: 0 16px;
+    }
+
+    tbody td {
+      font-size: 28px;
+      padding: 18px 16px;
+      background: var(--panel-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    tbody tr td:first-child {
+      border-top-left-radius: 20px;
+      border-bottom-left-radius: 20px;
+      font-weight: 700;
+    }
+
+    tbody tr td:last-child {
+      border-top-right-radius: 20px;
+      border-bottom-right-radius: 20px;
+      font-weight: 700;
+    }
+
+    .totals {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .slide-1 .layout {
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .slide-1 .content,
+    .slide-2 .content,
+    .slide-3 .content {
+      display: grid;
+      gap: 20px;
+      min-height: 0;
+    }
+
+    .slide-1 .content,
+    .slide-3 .content {
+      grid-template-columns: 1.25fr 0.95fr;
+    }
+
+    .slide-2 .content {
+      grid-template-columns: 1.35fr 0.95fr;
+    }
+
+    .slide-4 .layout {
+      grid-template-rows: auto 1fr;
+    }
+
+    .slide-4 .content {
+      min-height: 0;
+    }
+
+    .progress {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 6px;
+      background: var(--accent);
+      width: 0;
+      animation: progressBar linear infinite;
+      animation-duration: var(--rotation, 60s);
+    }
+
+    @keyframes progressBar {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="slides-root"></div>
+  <div class="progress"></div>
+
+  <script>
+    const dashboardData = {
+      rotationSeconds: 60,
+      updatedAt: "16/03/2026 09:00",
+      yearReference: 2025,
+      yearCurrent: 2026,
+      currentWeek: 10,
+      charts: {
+        chart1: "grafico1.png",
+        chart2: "grafico2.png",
+        chart3: "grafico3.png"
+      },
+      summary: {
+        totalCurrent: "1 613 915",
+        diffAbsolute: "-105 995",
+        diffPercent: "-6,2%"
+      },
+      weekly: {
+        bestWeek: { week: "S7", value: "+10,1%" },
+        worstWeek: { week: "S1", value: "-64,5%" },
+        message: "2026 está abaixo de 2025, mas com recuperação parcial entre as semanas 6 e 7."
+      },
+      efficiency: {
+        days: "65",
+        perDay: "24 829",
+        perHour: "1 035",
+        variation: "-4,7%"
+      },
+      tableRows: [
+        ["S6", "153 525", "180 056", "+26 531", "+17,3%"],
+        ["S7", "198 191", "218 289", "+20 098", "+10,1%"],
+        ["S8", "184 157", "163 736", "-20 421", "-11,1%"],
+        ["S9", "173 571", "142 931", "-30 640", "-17,7%"],
+        ["S10", "188 450", "163 282", "-25 169", "-13,4%"]
+      ]
+    };
+
+    document.documentElement.style.setProperty('--rotation', `${dashboardData.rotationSeconds}s`);
+
+    function valueClass(value) {
+      return String(value).trim().startsWith('+') ? 'text-good' : 'text-bad';
+    }
+
+    function buildSlide1(data) {
+      return `
+        <section class="slide slide-1 active">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Produção acumulada ${data.yearCurrent} vs ${data.yearReference}</h1>
+                <div class="subtitle">Até à semana ${data.currentWeek}</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+            </div>
+            <div class="content">
+              <div class="panel chart-box">
+                <img src="${data.charts.chart1}" alt="Gráfico 1" onerror="this.style.display='none'">
+              </div>
+              <div class="kpi-grid-3">
+                <div class="kpi">
+                  <div class="kpi-label">Total ${data.yearCurrent}</div>
+                  <div class="kpi-value">${data.summary.totalCurrent}</div>
+                </div>
+                <div class="kpi bad">
+                  <div class="kpi-label">Desvio absoluto</div>
+                  <div class="kpi-value">${data.summary.diffAbsolute}</div>
+                </div>
+                <div class="kpi bad">
+                  <div class="kpi-label">Desvio %</div>
+                  <div class="kpi-value">${data.summary.diffPercent}</div>
+                </div>
+              </div>
+            </div>
+            <div class="footer-note">Rotação automática a cada ${data.rotationSeconds} s</div>
+          </div>
+        </section>`;
+    }
+
+    function buildSlide2(data) {
+      return `
+        <section class="slide slide-2">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Produção por semana</h1>
+                <div class="subtitle">Comparação semanal ${data.yearCurrent} vs ${data.yearReference}</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+            </div>
+            <div class="content">
+              <div class="panel chart-box">
+                <img src="${data.charts.chart2}" alt="Gráfico 2" onerror="this.style.display='none'">
+              </div>
+              <div class="panel" style="padding:20px;">
+                <div class="kpi-grid-2" style="margin-bottom:16px;">
+                  <div class="kpi">
+                    <div class="kpi-label">Melhor semana</div>
+                    <div class="kpi-value medium">${data.weekly.bestWeek.week}</div>
+                    <div class="kpi-label text-good" style="margin-top:12px; font-size:28px;">${data.weekly.bestWeek.value}</div>
+                  </div>
+                  <div class="kpi">
+                    <div class="kpi-label">Pior semana</div>
+                    <div class="kpi-value medium">${data.weekly.worstWeek.week}</div>
+                    <div class="kpi-label text-bad" style="margin-top:12px; font-size:28px;">${data.weekly.worstWeek.value}</div>
+                  </div>
+                </div>
+                <div class="message">
+                  <div class="label">Mensagem de leitura</div>
+                  <div class="value">${data.weekly.message}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function buildSlide3(data) {
+      return `
+        <section class="slide slide-3">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Eficiência operacional</h1>
+                <div class="subtitle">Produção por dia e por hora</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+            </div>
+            <div class="content">
+              <div class="panel chart-box">
+                <img src="${data.charts.chart3}" alt="Gráfico 3" onerror="this.style.display='none'">
+              </div>
+              <div class="kpi-grid-4">
+                <div class="kpi">
+                  <div class="kpi-label">Dias corridos</div>
+                  <div class="kpi-value medium">${data.efficiency.days}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Produção/dia</div>
+                  <div class="kpi-value medium">${data.efficiency.perDay}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Produção/hora</div>
+                  <div class="kpi-value medium">${data.efficiency.perHour}</div>
+                </div>
+                <div class="kpi bad">
+                  <div class="kpi-label">Variação vs ${data.yearReference}</div>
+                  <div class="kpi-value medium">${data.efficiency.variation}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function buildSlide4(data) {
+      const rows = data.tableRows.map(row => `
+        <tr>
+          <td>${row[0]}</td>
+          <td>${row[1]}</td>
+          <td>${row[2]}</td>
+          <td>${row[3]}</td>
+          <td class="${valueClass(row[4])}">${row[4]}</td>
+        </tr>`).join('');
+
+      return `
+        <section class="slide slide-4">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Resumo semanal</h1>
+                <div class="subtitle">Tabela curta para leitura rápida na TV</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+            </div>
+            <div class="content panel table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Semana</th>
+                    <th>${data.yearReference}</th>
+                    <th>${data.yearCurrent}</th>
+                    <th>Dif.</th>
+                    <th>%</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+              <div class="totals">
+                <div class="kpi">
+                  <div class="kpi-label">TOTAL ${data.yearCurrent}</div>
+                  <div class="kpi-value medium">${data.summary.totalCurrent}</div>
+                </div>
+                <div class="kpi bad">
+                  <div class="kpi-label">Dif. total</div>
+                  <div class="kpi-value medium">${data.summary.diffAbsolute}</div>
+                </div>
+                <div class="kpi bad">
+                  <div class="kpi-label">Dif. %</div>
+                  <div class="kpi-value medium">${data.summary.diffPercent}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    const root = document.getElementById('slides-root');
+    root.innerHTML = [
+      buildSlide1(dashboardData),
+      buildSlide2(dashboardData),
+      buildSlide3(dashboardData),
+      buildSlide4(dashboardData)
+    ].join('');
+
+    const slides = document.querySelectorAll('.slide');
+    let current = 0;
+
+    function showSlide(index) {
+      slides.forEach(slide => slide.classList.remove('active'));
+      slides[index].classList.add('active');
+    }
+
+    setInterval(() => {
+      current = (current + 1) % slides.length;
+      showSlide(current);
+    }, dashboardData.rotationSeconds * 1000);
+  </script>
+</body>
+</html>
