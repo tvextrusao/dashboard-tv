@@ -286,7 +286,7 @@
     // 3) resumo
     // Publica o ficheiro na web.
     const CONFIG = {
-      publishedSheetBase: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRHN8s82xo-_PKCd6xvUEHNEyPqAOCA9tvg4a78i3FMUf1UT_mY_hYOfn5xmkO8zDG2bWKdFUmvHED9',
+      spreadsheetId: '1oP7cxDdI-H56Pgh6nuYy8Vp7b32PCqzeJijNg27i1O8',
       rotationSeconds: 60,
       yearReferenceFallback: 2025,
       yearCurrentFallback: 2026
@@ -317,7 +317,8 @@
     }
 
     function sheetQueryUrl(sheetName) {
-      return `${CONFIG.publishedSheetBase}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json`;
+      return `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json`;
+    }/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json`;
     }
 
     async function fetchSheet(sheetName) {
