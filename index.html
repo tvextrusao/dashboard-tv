@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard Produção TV</title>
   <meta http-equiv="refresh" content="1800" />
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -45,9 +46,7 @@
       background: var(--bg);
     }
 
-    .slide.active {
-      display: block;
-    }
+    .slide.active { display: block; }
 
     .layout {
       width: 100%;
@@ -98,10 +97,10 @@
       overflow: hidden;
     }
 
-    .chart-box img {
+    .chart-canvas {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      min-height: 520px;
       border-radius: 18px;
       background: #0f0f0f;
     }
@@ -140,9 +139,7 @@
       line-height: 1;
     }
 
-    .kpi-value.medium {
-      font-size: 54px;
-    }
+    .kpi-value.medium { font-size: 54px; }
 
     .kpi.good .kpi-value,
     .text-good { color: var(--good); }
@@ -228,10 +225,7 @@
       gap: 16px;
     }
 
-    .slide-1 .layout {
-      grid-template-rows: auto 1fr auto;
-    }
-
+    .slide-1 .layout { grid-template-rows: auto 1fr auto; }
     .slide-1 .content,
     .slide-2 .content,
     .slide-3 .content {
@@ -241,21 +235,10 @@
     }
 
     .slide-1 .content,
-    .slide-3 .content {
-      grid-template-columns: 1.25fr 0.95fr;
-    }
-
-    .slide-2 .content {
-      grid-template-columns: 1.35fr 0.95fr;
-    }
-
-    .slide-4 .layout {
-      grid-template-rows: auto 1fr;
-    }
-
-    .slide-4 .content {
-      min-height: 0;
-    }
+    .slide-3 .content { grid-template-columns: 1.25fr 0.95fr; }
+    .slide-2 .content { grid-template-columns: 1.35fr 0.95fr; }
+    .slide-4 .layout { grid-template-rows: auto 1fr; }
+    .slide-4 .content { min-height: 0; }
 
     .progress {
       position: absolute;
@@ -268,6 +251,22 @@
       animation-duration: var(--rotation, 60s);
     }
 
+    .loading,
+    .error {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 28px;
+      background: var(--bg);
+    }
+
+    .error { color: #fca5a5; }
+
     @keyframes progressBar {
       from { width: 0; }
       to { width: 100%; }
@@ -275,54 +274,136 @@
   </style>
 </head>
 <body>
-  <div id="slides-root"></div>
+  <div id="app" class="loading">A carregar dashboard...</div>
   <div class="progress"></div>
 
   <script>
-    const dashboardData = {
+    // FONTE DE DADOS
+    // Já deixei o teu link publicado preparado.
+    // Para isto funcionar bem, no Google Sheets cria estes separadores com estes nomes exatos:
+    // 1) kpis
+    // 2) series
+    // 3) resumo
+    // Publica o ficheiro na web.
+    const CONFIG = {
+      publishedSheetBase: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQc_Vt7neMd4YxSpUzAX_tdD1afhu287uVPUZSvcGb7mthzqrnPwLZ0C3sjDi54RU9Xc8ubwVJO4z1R',
       rotationSeconds: 60,
-      updatedAt: "16/03/2026 09:00",
-      yearReference: 2025,
-      yearCurrent: 2026,
-      currentWeek: 10,
-      charts: {
-        chart1: "grafico1.png",
-        chart2: "grafico2.png",
-        chart3: "grafico3.png"
-      },
-      summary: {
-        totalCurrent: "1 613 915",
-        diffAbsolute: "-105 995",
-        diffPercent: "-6,2%"
-      },
-      weekly: {
-        bestWeek: { week: "S7", value: "+10,1%" },
-        worstWeek: { week: "S1", value: "-64,5%" },
-        message: "2026 está abaixo de 2025, mas com recuperação parcial entre as semanas 6 e 7."
-      },
-      efficiency: {
-        days: "65",
-        perDay: "24 829",
-        perHour: "1 035",
-        variation: "-4,7%"
-      },
-      tableRows: [
-        ["S6", "153 525", "180 056", "+26 531", "+17,3%"],
-        ["S7", "198 191", "218 289", "+20 098", "+10,1%"],
-        ["S8", "184 157", "163 736", "-20 421", "-11,1%"],
-        ["S9", "173 571", "142 931", "-30 640", "-17,7%"],
-        ["S10", "188 450", "163 282", "-25 169", "-13,4%"]
-      ]
+      yearReferenceFallback: 2025,
+      yearCurrentFallback: 2026
     };
 
-    document.documentElement.style.setProperty('--rotation', `${dashboardData.rotationSeconds}s`);
+    document.documentElement.style.setProperty('--rotation', `${CONFIG.rotationSeconds}s`);
 
-    function valueClass(value) {
-      return String(value).trim().startsWith('+') ? 'text-good' : 'text-bad';
+    google.charts.load('current', { packages: ['corechart', 'table'] });
+    google.charts.setOnLoadCallback(initDashboard);
+
+    async function initDashboard() {
+      try {
+        const [kpis, series, resumo] = await Promise.all([
+          fetchSheet('kpis'),
+          fetchSheet('series'),
+          fetchSheet('resumo')
+        ]);
+
+        const dashboardData = normalizeData(kpis, series, resumo);
+        renderDashboard(dashboardData);
+        startRotation(dashboardData.rotationSeconds || CONFIG.rotationSeconds);
+        drawAllCharts(dashboardData);
+        window.addEventListener('resize', () => drawAllCharts(dashboardData));
+      } catch (error) {
+        document.getElementById('app').className = 'error';
+        document.getElementById('app').innerHTML = `Erro ao ler dados do Google Sheets.<br><br>${escapeHtml(error.message)}`;
+      }
     }
 
-    function buildSlide1(data) {
-      return `
+    function sheetQueryUrl(sheetName) {
+      return `${CONFIG.publishedSheetBase}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json`;
+    }
+
+    async function fetchSheet(sheetName) {
+      const response = await fetch(sheetQueryUrl(sheetName));
+      if (!response.ok) throw new Error(`Falha ao ler o separador ${sheetName}`);
+      const raw = await response.text();
+      const json = JSON.parse(raw.substring(47).slice(0, -2));
+      return google.visualization.arrayToDataTable(parseGvizTable(json.table), false);
+    }
+
+    function parseGvizTable(table) {
+      const cols = table.cols.map(col => col.label || col.id || '');
+      const rows = table.rows.map(row => row.c.map(cell => cell ? cell.v : ''));
+      return [cols, ...rows];
+    }
+
+    function tableToObjects(dataTable) {
+      const headers = [];
+      for (let c = 0; c < dataTable.getNumberOfColumns(); c++) {
+        headers.push(String(dataTable.getValue(0, c) ?? dataTable.getColumnLabel(c) ?? '').trim());
+      }
+      const objects = [];
+      for (let r = 1; r < dataTable.getNumberOfRows(); r++) {
+        const obj = {};
+        headers.forEach((header, idx) => {
+          obj[header] = dataTable.getValue(r, idx);
+        });
+        objects.push(obj);
+      }
+      return objects;
+    }
+
+    function normalizeData(kpisTable, seriesTable, resumoTable) {
+      const kpisRows = tableToObjects(kpisTable);
+      const seriesRows = tableToObjects(seriesTable);
+      const resumoRows = tableToObjects(resumoTable);
+
+      const kpis = {};
+      kpisRows.forEach(row => {
+        const key = String(row.campo ?? row.Campo ?? '').trim();
+        if (key) kpis[key] = row.valor ?? row.Valor ?? '';
+      });
+
+      const yearReference = Number(kpis.yearReference || CONFIG.yearReferenceFallback);
+      const yearCurrent = Number(kpis.yearCurrent || CONFIG.yearCurrentFallback);
+
+      return {
+        rotationSeconds: Number(kpis.rotationSeconds || CONFIG.rotationSeconds),
+        updatedAt: String(kpis.updatedAt || new Date().toLocaleString('pt-PT')),
+        currentWeek: Number(kpis.currentWeek || 0),
+        yearReference,
+        yearCurrent,
+        summary: {
+          totalCurrent: formatInt(kpis.totalCurrent),
+          diffAbsolute: formatSignedInt(kpis.diffAbsolute),
+          diffPercent: formatSignedPercent(kpis.diffPercent)
+        },
+        weekly: {
+          bestWeek: { week: String(kpis.bestWeek || ''), value: formatSignedPercent(kpis.bestValue) },
+          worstWeek: { week: String(kpis.worstWeek || ''), value: formatSignedPercent(kpis.worstValue) },
+          message: String(kpis.message || '')
+        },
+        efficiency: {
+          days: formatInt(kpis.days),
+          perDay: formatInt(kpis.perDay),
+          perHour: formatInt(kpis.perHour),
+          variation: formatSignedPercent(kpis.variation)
+        },
+        seriesRows: seriesRows.map(row => ({
+          semana: String(row.semana ?? row.Semana ?? ''),
+          y2025: Number(row[yearReference] ?? row['prod_2025'] ?? row['2025'] ?? 0),
+          y2026: Number(row[yearCurrent] ?? row['prod_2026'] ?? row['2026'] ?? 0)
+        })),
+        tableRows: resumoRows.map(row => ({
+          semana: String(row.semana ?? row.Semana ?? ''),
+          ref: Number(row[yearReference] ?? row['2025'] ?? 0),
+          cur: Number(row[yearCurrent] ?? row['2026'] ?? 0),
+          difAbs: Number(row.dif_abs ?? row['Dif. Abs.'] ?? row['dif'] ?? 0),
+          difPct: Number(row.dif_pct ?? row['Dif. %'] ?? row['pct'] ?? 0)
+        }))
+      };
+    }
+
+    function renderDashboard(data) {
+      document.getElementById('app').className = '';
+      document.getElementById('app').innerHTML = `
         <section class="slide slide-1 active">
           <div class="layout">
             <div class="header">
@@ -330,34 +411,20 @@
                 <h1 class="title">Produção acumulada ${data.yearCurrent} vs ${data.yearReference}</h1>
                 <div class="subtitle">Até à semana ${data.currentWeek}</div>
               </div>
-              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box">
-                <img src="${data.charts.chart1}" alt="Gráfico 1" onerror="this.style.display='none'">
-              </div>
+              <div class="panel chart-box"><div id="chart1" class="chart-canvas"></div></div>
               <div class="kpi-grid-3">
-                <div class="kpi">
-                  <div class="kpi-label">Total ${data.yearCurrent}</div>
-                  <div class="kpi-value">${data.summary.totalCurrent}</div>
-                </div>
-                <div class="kpi bad">
-                  <div class="kpi-label">Desvio absoluto</div>
-                  <div class="kpi-value">${data.summary.diffAbsolute}</div>
-                </div>
-                <div class="kpi bad">
-                  <div class="kpi-label">Desvio %</div>
-                  <div class="kpi-value">${data.summary.diffPercent}</div>
-                </div>
+                <div class="kpi"><div class="kpi-label">Total ${data.yearCurrent}</div><div class="kpi-value">${escapeHtml(data.summary.totalCurrent)}</div></div>
+                <div class="kpi bad"><div class="kpi-label">Desvio absoluto</div><div class="kpi-value">${escapeHtml(data.summary.diffAbsolute)}</div></div>
+                <div class="kpi bad"><div class="kpi-label">Desvio %</div><div class="kpi-value">${escapeHtml(data.summary.diffPercent)}</div></div>
               </div>
             </div>
             <div class="footer-note">Rotação automática a cada ${data.rotationSeconds} s</div>
           </div>
-        </section>`;
-    }
+        </section>
 
-    function buildSlide2(data) {
-      return `
         <section class="slide slide-2">
           <div class="layout">
             <div class="header">
@@ -365,37 +432,32 @@
                 <h1 class="title">Produção por semana</h1>
                 <div class="subtitle">Comparação semanal ${data.yearCurrent} vs ${data.yearReference}</div>
               </div>
-              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box">
-                <img src="${data.charts.chart2}" alt="Gráfico 2" onerror="this.style.display='none'">
-              </div>
+              <div class="panel chart-box"><div id="chart2" class="chart-canvas"></div></div>
               <div class="panel" style="padding:20px;">
                 <div class="kpi-grid-2" style="margin-bottom:16px;">
                   <div class="kpi">
                     <div class="kpi-label">Melhor semana</div>
-                    <div class="kpi-value medium">${data.weekly.bestWeek.week}</div>
-                    <div class="kpi-label text-good" style="margin-top:12px; font-size:28px;">${data.weekly.bestWeek.value}</div>
+                    <div class="kpi-value medium">${escapeHtml(data.weekly.bestWeek.week)}</div>
+                    <div class="kpi-label text-good" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.bestWeek.value)}</div>
                   </div>
                   <div class="kpi">
                     <div class="kpi-label">Pior semana</div>
-                    <div class="kpi-value medium">${data.weekly.worstWeek.week}</div>
-                    <div class="kpi-label text-bad" style="margin-top:12px; font-size:28px;">${data.weekly.worstWeek.value}</div>
+                    <div class="kpi-value medium">${escapeHtml(data.weekly.worstWeek.week)}</div>
+                    <div class="kpi-label text-bad" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.worstWeek.value)}</div>
                   </div>
                 </div>
                 <div class="message">
                   <div class="label">Mensagem de leitura</div>
-                  <div class="value">${data.weekly.message}</div>
+                  <div class="value">${escapeHtml(data.weekly.message)}</div>
                 </div>
               </div>
             </div>
           </div>
-        </section>`;
-    }
+        </section>
 
-    function buildSlide3(data) {
-      return `
         <section class="slide slide-3">
           <div class="layout">
             <div class="header">
@@ -403,46 +465,20 @@
                 <h1 class="title">Eficiência operacional</h1>
                 <div class="subtitle">Produção por dia e por hora</div>
               </div>
-              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box">
-                <img src="${data.charts.chart3}" alt="Gráfico 3" onerror="this.style.display='none'">
-              </div>
+              <div class="panel chart-box"><div id="chart3" class="chart-canvas"></div></div>
               <div class="kpi-grid-4">
-                <div class="kpi">
-                  <div class="kpi-label">Dias corridos</div>
-                  <div class="kpi-value medium">${data.efficiency.days}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Produção/dia</div>
-                  <div class="kpi-value medium">${data.efficiency.perDay}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Produção/hora</div>
-                  <div class="kpi-value medium">${data.efficiency.perHour}</div>
-                </div>
-                <div class="kpi bad">
-                  <div class="kpi-label">Variação vs ${data.yearReference}</div>
-                  <div class="kpi-value medium">${data.efficiency.variation}</div>
-                </div>
+                <div class="kpi"><div class="kpi-label">Dias corridos</div><div class="kpi-value medium">${escapeHtml(data.efficiency.days)}</div></div>
+                <div class="kpi"><div class="kpi-label">Produção/dia</div><div class="kpi-value medium">${escapeHtml(data.efficiency.perDay)}</div></div>
+                <div class="kpi"><div class="kpi-label">Produção/hora</div><div class="kpi-value medium">${escapeHtml(data.efficiency.perHour)}</div></div>
+                <div class="kpi bad"><div class="kpi-label">Variação vs ${data.yearReference}</div><div class="kpi-value medium">${escapeHtml(data.efficiency.variation)}</div></div>
               </div>
             </div>
           </div>
-        </section>`;
-    }
+        </section>
 
-    function buildSlide4(data) {
-      const rows = data.tableRows.map(row => `
-        <tr>
-          <td>${row[0]}</td>
-          <td>${row[1]}</td>
-          <td>${row[2]}</td>
-          <td>${row[3]}</td>
-          <td class="${valueClass(row[4])}">${row[4]}</td>
-        </tr>`).join('');
-
-      return `
         <section class="slide slide-4">
           <div class="layout">
             <div class="header">
@@ -450,7 +486,7 @@
                 <h1 class="title">Resumo semanal</h1>
                 <div class="subtitle">Tabela curta para leitura rápida na TV</div>
               </div>
-              <div class="timestamp">Atualizado em<br>${data.updatedAt}</div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content panel table-wrap">
               <table>
@@ -463,47 +499,129 @@
                     <th>%</th>
                   </tr>
                 </thead>
-                <tbody>${rows}</tbody>
+                <tbody id="summary-table-body"></tbody>
               </table>
               <div class="totals">
-                <div class="kpi">
-                  <div class="kpi-label">TOTAL ${data.yearCurrent}</div>
-                  <div class="kpi-value medium">${data.summary.totalCurrent}</div>
-                </div>
-                <div class="kpi bad">
-                  <div class="kpi-label">Dif. total</div>
-                  <div class="kpi-value medium">${data.summary.diffAbsolute}</div>
-                </div>
-                <div class="kpi bad">
-                  <div class="kpi-label">Dif. %</div>
-                  <div class="kpi-value medium">${data.summary.diffPercent}</div>
-                </div>
+                <div class="kpi"><div class="kpi-label">TOTAL ${data.yearCurrent}</div><div class="kpi-value medium">${escapeHtml(data.summary.totalCurrent)}</div></div>
+                <div class="kpi bad"><div class="kpi-label">Dif. total</div><div class="kpi-value medium">${escapeHtml(data.summary.diffAbsolute)}</div></div>
+                <div class="kpi bad"><div class="kpi-label">Dif. %</div><div class="kpi-value medium">${escapeHtml(data.summary.diffPercent)}</div></div>
               </div>
             </div>
           </div>
         </section>`;
+
+      document.getElementById('summary-table-body').innerHTML = data.tableRows.map(row => `
+        <tr>
+          <td>${escapeHtml(row.semana)}</td>
+          <td>${escapeHtml(formatInt(row.ref))}</td>
+          <td>${escapeHtml(formatInt(row.cur))}</td>
+          <td>${escapeHtml(formatSignedInt(row.difAbs))}</td>
+          <td class="${row.difPct >= 0 ? 'text-good' : 'text-bad'}">${escapeHtml(formatSignedPercent(row.difPct))}</td>
+        </tr>`).join('');
     }
 
-    const root = document.getElementById('slides-root');
-    root.innerHTML = [
-      buildSlide1(dashboardData),
-      buildSlide2(dashboardData),
-      buildSlide3(dashboardData),
-      buildSlide4(dashboardData)
-    ].join('');
-
-    const slides = document.querySelectorAll('.slide');
-    let current = 0;
-
-    function showSlide(index) {
-      slides.forEach(slide => slide.classList.remove('active'));
-      slides[index].classList.add('active');
+    function drawAllCharts(data) {
+      drawChart1(data);
+      drawChart2(data);
+      drawChart3(data);
     }
 
-    setInterval(() => {
-      current = (current + 1) % slides.length;
-      showSlide(current);
-    }, dashboardData.rotationSeconds * 1000);
+    function drawChart1(data) {
+      const table = new google.visualization.DataTable();
+      table.addColumn('string', 'Semana');
+      table.addColumn('number', String(data.yearReference));
+      table.addColumn('number', String(data.yearCurrent));
+      data.seriesRows.forEach(row => table.addRow([row.semana, row.y2025, row.y2026]));
+
+      const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
+      chart.draw(table, {
+        backgroundColor: '#0f0f0f',
+        chartArea: { left: 80, top: 35, width: '82%', height: '72%' },
+        legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
+        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
+        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
+        colors: ['#60a5fa', '#34d399'],
+        animation: { startup: false, duration: 400, easing: 'out' }
+      });
+    }
+
+    function drawChart2(data) {
+      const table = new google.visualization.DataTable();
+      table.addColumn('string', 'Semana');
+      table.addColumn('number', 'Dif. %');
+      data.tableRows.forEach(row => table.addRow([row.semana, row.difPct]));
+
+      const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
+      chart.draw(table, {
+        backgroundColor: '#0f0f0f',
+        chartArea: { left: 80, top: 35, width: '82%', height: '72%' },
+        legend: 'none',
+        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
+        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555', format: "#'%'" },
+        colors: ['#f59e0b'],
+        animation: { startup: false, duration: 400, easing: 'out' }
+      });
+    }
+
+    function drawChart3(data) {
+      const table = google.visualization.arrayToDataTable([
+        ['Indicador', 'Valor'],
+        ['Produção/dia', parseNumber(data.efficiency.perDay)],
+        ['Produção/hora', parseNumber(data.efficiency.perHour)]
+      ]);
+
+      const chart = new google.visualization.BarChart(document.getElementById('chart3'));
+      chart.draw(table, {
+        backgroundColor: '#0f0f0f',
+        chartArea: { left: 140, top: 35, width: '70%', height: '70%' },
+        legend: 'none',
+        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
+        vAxis: { textStyle: { color: '#ffffff', fontSize: 18 } },
+        colors: ['#a78bfa'],
+        animation: { startup: false, duration: 400, easing: 'out' }
+      });
+    }
+
+    function startRotation(rotationSeconds) {
+      const slides = document.querySelectorAll('.slide');
+      let current = 0;
+      setInterval(() => {
+        slides[current].classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current].classList.add('active');
+      }, rotationSeconds * 1000);
+    }
+
+    function formatInt(value) {
+      const n = Number(value || 0);
+      return new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 0 }).format(n);
+    }
+
+    function formatSignedInt(value) {
+      const n = Number(value || 0);
+      const formatted = formatInt(Math.abs(n));
+      return `${n >= 0 ? '+' : '-'}${formatted}`;
+    }
+
+    function formatSignedPercent(value) {
+      const n = Number(value || 0);
+      const formatted = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(n));
+      return `${n >= 0 ? '+' : '-'}${formatted}%`;
+    }
+
+    function parseNumber(value) {
+      if (typeof value === 'number') return value;
+      return Number(String(value).replace(/\s/g, '').replace(',', '.').replace('%', '')) || 0;
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
   </script>
 </body>
 </html>
