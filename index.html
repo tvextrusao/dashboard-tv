@@ -385,6 +385,12 @@
           perHour: formatInt(kpis.perHour),
           variation: formatSignedPercent(kpis.variation)
         },
+        waste: {
+          y2025: toNumber(kpis.waste2025),
+          y2026: toNumber(kpis.waste2026),
+          diffAbs: formatSignedInt(kpis.wasteDiffAbs),
+          diffPct: formatSignedPercent(kpis.wasteDiffPct)
+        },
         seriesRows: seriesRows.map(row => ({
           semana: String(row.semana || row.Semana || ''),
           yRef: toNumber(row[yearReference]),
@@ -457,9 +463,7 @@
     </div>
   </div>
   <div class="message">
-    <div class="label"></div>
     <div class="value">${escapeHtml(data.weekly.message)}</div>
-  </div>
 </div>
         </section>
 
@@ -496,7 +500,36 @@
           </div>
         </section>
 
-        <section class="slide slide-4">
+                <section class="slide slide-4">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Desperdício</h1>
+                <div class="subtitle">Comparação ${data.yearCurrent} vs ${data.yearReference}</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
+            </div>
+            <div class="content">
+              <div class="panel chart-box"><div id="chart4" class="chart-canvas"></div></div>
+              <div class="kpi-grid-3">
+                <div class="kpi">
+                  <div class="kpi-label">Desperdício ${data.yearCurrent}</div>
+                  <div class="kpi-value">${escapeHtml(formatInt(data.waste.y2026))}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Variação absoluta</div>
+                  <div class="kpi-value ${data.waste.diffAbs.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.waste.diffAbs)}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Variação %</div>
+                  <div class="kpi-value ${data.waste.diffPct.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.waste.diffPct)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide slide-5">
           <div class="layout">
             <div class="header">
               <div>
@@ -547,10 +580,11 @@
     }
 
     function drawAllCharts(data) {
-      drawChart1(data);
-      drawChart2(data);
-      drawChart3(data);
-    }
+  drawChart1(data);
+  drawChart2(data);
+  drawChart3(data);
+  drawChart4(data);
+}
 
     function drawChart1(data) {
       const table = new google.visualization.DataTable();
@@ -635,6 +669,43 @@
         colors: ['#a78bfa']
       });
     }
+
+    function drawChart4(data) {
+  const table = google.visualization.arrayToDataTable([
+    ['Ano', 'Desperdício'],
+    [String(data.yearReference), data.waste.y2025],
+    [String(data.yearCurrent), data.waste.y2026]
+  ]);
+
+  const chart = new google.visualization.ComboChart(document.getElementById('chart4'));
+  chart.draw(table, {
+    backgroundColor: '#0f0f0f',
+    chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
+    legend: 'none',
+    seriesType: 'bars',
+    series: {
+      0: {
+        type: 'line',
+        lineWidth: 2,
+        pointSize: 6
+      }
+    },
+    hAxis: {
+      title: 'Ano',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 20 },
+      baselineColor: '#555'
+    },
+    vAxis: {
+      title: 'Desperdício (kg)',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 16 },
+      gridlines: { color: '#333' },
+      baselineColor: '#555'
+    },
+    colors: ['#4f7ac8']
+  });
+}
 
     function startRotation(rotationSeconds, data) {
       const slides = document.querySelectorAll('.slide');
