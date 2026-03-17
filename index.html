@@ -297,7 +297,7 @@
 
         const dashboardData = normalizeData(kpisRaw, seriesRaw, resumoRaw);
         renderDashboard(dashboardData);
-        startRotation(dashboardData.rotationSeconds || CONFIG.rotationSeconds);
+        startRotation(dashboardData.rotationSeconds || CONFIG.rotationSeconds, dashboardData);
         drawAllCharts(dashboardData);
         window.addEventListener('resize', () => drawAllCharts(dashboardData));
       } catch (error) {
@@ -574,15 +574,22 @@
       });
     }
 
-    function startRotation(rotationSeconds) {
-      const slides = document.querySelectorAll('.slide');
-      let current = 0;
-      setInterval(() => {
-        slides[current].classList.remove('active');
-        current = (current + 1) % slides.length;
-        slides[current].classList.add('active');
-      }, rotationSeconds * 1000);
-    }
+    function startRotation(rotationSeconds, data) {
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+
+  setInterval(() => {
+    slides[current].classList.remove('active');
+    current = (current + 1) % slides.length;
+    slides[current].classList.add('active');
+
+    // redesenha os gráficos depois do slide ficar visível
+    setTimeout(() => {
+      drawAllCharts(data);
+    }, 150);
+
+  }, rotationSeconds * 1000);
+}
 
     function formatInt(value) {
       const n = toNumber(value);
