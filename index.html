@@ -141,10 +141,7 @@
 
     .kpi-value.medium { font-size: 54px; }
 
-    .kpi.good .kpi-value,
     .text-good { color: var(--good); }
-
-    .kpi.bad .kpi-value,
     .text-bad { color: var(--bad); }
 
     .message {
@@ -287,18 +284,18 @@
 
     document.documentElement.style.setProperty('--rotation', `${CONFIG.rotationSeconds}s`);
 
-    google.charts.load('current', { packages: ['corechart', 'table'] });
+    google.charts.load('current', { packages: ['corechart'] });
     google.charts.setOnLoadCallback(initDashboard);
 
     async function initDashboard() {
       try {
-        const [kpis, series, resumo] = await Promise.all([
+        const [kpisRaw, seriesRaw, resumoRaw] = await Promise.all([
           fetchSheet('kpis'),
           fetchSheet('series'),
           fetchSheet('resumo')
         ]);
 
-        const dashboardData = normalizeData(kpis, series, resumo);
+        const dashboardData = normalizeData(kpisRaw, seriesRaw, resumoRaw);
         renderDashboard(dashboardData);
         startRotation(dashboardData.rotationSeconds || CONFIG.rotationSeconds);
         drawAllCharts(dashboardData);
@@ -318,49 +315,54 @@
       if (!response.ok) throw new Error(`Falha ao ler o separador ${sheetName}`);
       const raw = await response.text();
       const json = JSON.parse(raw.substring(47).slice(0, -2));
-      return google.visualization.arrayToDataTable(parseGvizTable(json.table), false);
+      return json.table;
     }
 
-    function parseGvizTable(table) {
-      const cols = table.cols.map(col => col.label || col.id || '');
-      const rows = table.rows.map(row => row.c.map(cell => cell ? cell.v : ''));
-      return [cols, ...rows];
+    function gvizTableToObjects(table) {
+      const headers = table.cols.map(col => String(col.label || col.id || '').trim());
+      return table.rows
+        .map(row => {
+          const obj = {};
+          headers.forEach((header, idx) => {
+            const cell = row.c[idx];
+            obj[header] = cell ? cell.v : '';
+          });
+          return obj;
+        })
+        .filter(row => Object.values(row).some(v => v !== '' && v !== null));
     }
 
-    function tableToObjects(dataTable) {
-      const headers = [];
-      for (let c = 0; c < dataTable.getNumberOfColumns(); c++) {
-        headers.push(String(dataTable.getValue(0, c) ?? dataTable.getColumnLabel(c) ?? '').trim());
-      }
-      const objects = [];
-      for (let r = 1; r < dataTable.getNumberOfRows(); r++) {
-        const obj = {};
-        headers.forEach((header, idx) => {
-          obj[header] = dataTable.getValue(r, idx);
-        });
-        objects.push(obj);
-      }
-      return objects;
+    function toNumber(value) {
+      if (typeof value === 'number') return value;
+      if (value === null || value === undefined) return 0;
+      const cleaned = String(value)
+        .trim()
+        .replace(/^'/, '')
+        .replace(/\s/g, '')
+        .replace('%', '')
+        .replace(',', '.');
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
     }
 
     function normalizeData(kpisTable, seriesTable, resumoTable) {
-      const kpisRows = tableToObjects(kpisTable);
-      const seriesRows = tableToObjects(seriesTable);
-      const resumoRows = tableToObjects(resumoTable);
+      const kpisRows = gvizTableToObjects(kpisTable);
+      const seriesRows = gvizTableToObjects(seriesTable);
+      const resumoRows = gvizTableToObjects(resumoTable);
 
       const kpis = {};
       kpisRows.forEach(row => {
-        const key = String(row.campo ?? row.Campo ?? '').trim();
+        const key = String(row.campo || row.Campo || '').trim();
         if (key) kpis[key] = row.valor ?? row.Valor ?? '';
       });
 
-      const yearReference = Number(kpis.yearReference || CONFIG.yearReferenceFallback);
-      const yearCurrent = Number(kpis.yearCurrent || CONFIG.yearCurrentFallback);
+      const yearReference = String(kpis.yearReference || CONFIG.yearReferenceFallback);
+      const yearCurrent = String(kpis.yearCurrent || CONFIG.yearCurrentFallback);
 
       return {
-        rotationSeconds: Number(kpis.rotationSeconds || CONFIG.rotationSeconds),
+        rotationSeconds: toNumber(kpis.rotationSeconds || CONFIG.rotationSeconds),
         updatedAt: String(kpis.updatedAt || new Date().toLocaleString('pt-PT')),
-        currentWeek: Number(kpis.currentWeek || 0),
+        currentWeek: toNumber(kpis.currentWeek || 0),
         yearReference,
         yearCurrent,
         summary: {
@@ -380,17 +382,17 @@
           variation: formatSignedPercent(kpis.variation)
         },
         seriesRows: seriesRows.map(row => ({
-          semana: String(row.semana ?? row.Semana ?? ''),
-          y2025: Number(row[yearReference] ?? row['prod_2025'] ?? row['2025'] ?? 0),
-          y2026: Number(row[yearCurrent] ?? row['prod_2026'] ?? row['2026'] ?? 0)
-        })),
+          semana: String(row.semana || row.Semana || ''),
+          yRef: toNumber(row[yearReference]),
+          yCur: toNumber(row[yearCurrent])
+        })).filter(row => row.semana),
         tableRows: resumoRows.map(row => ({
-          semana: String(row.semana ?? row.Semana ?? ''),
-          ref: Number(row[yearReference] ?? row['2025'] ?? 0),
-          cur: Number(row[yearCurrent] ?? row['2026'] ?? 0),
-          difAbs: Number(row.dif_abs ?? row['Dif. Abs.'] ?? row['dif'] ?? 0),
-          difPct: Number(row.dif_pct ?? row['Dif. %'] ?? row['pct'] ?? 0)
-        }))
+          semana: String(row.semana || row.Semana || ''),
+          ref: toNumber(row[yearReference]),
+          cur: toNumber(row[yearCurrent]),
+          difAbs: toNumber(row.dif_abs ?? row['Dif. Abs.'] ?? row.dif ?? 0),
+          difPct: toNumber(row.dif_pct ?? row['Dif. %'] ?? row.pct ?? 0)
+        })).filter(row => row.semana)
       };
     }
 
@@ -410,8 +412,8 @@
               <div class="panel chart-box"><div id="chart1" class="chart-canvas"></div></div>
               <div class="kpi-grid-3">
                 <div class="kpi"><div class="kpi-label">Total ${data.yearCurrent}</div><div class="kpi-value">${escapeHtml(data.summary.totalCurrent)}</div></div>
-                <div class="kpi bad"><div class="kpi-label">Desvio absoluto</div><div class="kpi-value">${escapeHtml(data.summary.diffAbsolute)}</div></div>
-                <div class="kpi bad"><div class="kpi-label">Desvio %</div><div class="kpi-value">${escapeHtml(data.summary.diffPercent)}</div></div>
+                <div class="kpi"><div class="kpi-label">Desvio absoluto</div><div class="kpi-value ${data.summary.diffAbsolute.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffAbsolute)}</div></div>
+                <div class="kpi"><div class="kpi-label">Desvio %</div><div class="kpi-value ${data.summary.diffPercent.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffPercent)}</div></div>
               </div>
             </div>
             <div class="footer-note">Rotação automática a cada ${data.rotationSeconds} s</div>
@@ -466,7 +468,7 @@
                 <div class="kpi"><div class="kpi-label">Dias corridos</div><div class="kpi-value medium">${escapeHtml(data.efficiency.days)}</div></div>
                 <div class="kpi"><div class="kpi-label">Produção/dia</div><div class="kpi-value medium">${escapeHtml(data.efficiency.perDay)}</div></div>
                 <div class="kpi"><div class="kpi-label">Produção/hora</div><div class="kpi-value medium">${escapeHtml(data.efficiency.perHour)}</div></div>
-                <div class="kpi bad"><div class="kpi-label">Variação vs ${data.yearReference}</div><div class="kpi-value medium">${escapeHtml(data.efficiency.variation)}</div></div>
+                <div class="kpi"><div class="kpi-label">Variação vs ${data.yearReference}</div><div class="kpi-value medium ${data.efficiency.variation.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.efficiency.variation)}</div></div>
               </div>
             </div>
           </div>
@@ -496,8 +498,8 @@
               </table>
               <div class="totals">
                 <div class="kpi"><div class="kpi-label">TOTAL ${data.yearCurrent}</div><div class="kpi-value medium">${escapeHtml(data.summary.totalCurrent)}</div></div>
-                <div class="kpi bad"><div class="kpi-label">Dif. total</div><div class="kpi-value medium">${escapeHtml(data.summary.diffAbsolute)}</div></div>
-                <div class="kpi bad"><div class="kpi-label">Dif. %</div><div class="kpi-value medium">${escapeHtml(data.summary.diffPercent)}</div></div>
+                <div class="kpi"><div class="kpi-label">Dif. total</div><div class="kpi-value medium ${data.summary.diffAbsolute.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffAbsolute)}</div></div>
+                <div class="kpi"><div class="kpi-label">Dif. %</div><div class="kpi-value medium ${data.summary.diffPercent.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffPercent)}</div></div>
               </div>
             </div>
           </div>
@@ -524,7 +526,7 @@
       table.addColumn('string', 'Semana');
       table.addColumn('number', String(data.yearReference));
       table.addColumn('number', String(data.yearCurrent));
-      data.seriesRows.forEach(row => table.addRow([row.semana, row.y2025, row.y2026]));
+      data.seriesRows.forEach(row => table.addRow([row.semana, row.yRef, row.yCur]));
 
       const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
       chart.draw(table, {
@@ -533,8 +535,7 @@
         legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
         hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
         vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
-        colors: ['#60a5fa', '#34d399'],
-        animation: { startup: false, duration: 400, easing: 'out' }
+        colors: ['#60a5fa', '#34d399']
       });
     }
 
@@ -550,17 +551,16 @@
         chartArea: { left: 80, top: 35, width: '82%', height: '72%' },
         legend: 'none',
         hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
-        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555', format: "#'%'" },
-        colors: ['#f59e0b'],
-        animation: { startup: false, duration: 400, easing: 'out' }
+        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
+        colors: ['#f59e0b']
       });
     }
 
     function drawChart3(data) {
       const table = google.visualization.arrayToDataTable([
         ['Indicador', 'Valor'],
-        ['Produção/dia', parseNumber(data.efficiency.perDay)],
-        ['Produção/hora', parseNumber(data.efficiency.perHour)]
+        ['Produção/dia', toNumber(data.efficiency.perDay)],
+        ['Produção/hora', toNumber(data.efficiency.perHour)]
       ]);
 
       const chart = new google.visualization.BarChart(document.getElementById('chart3'));
@@ -570,8 +570,7 @@
         legend: 'none',
         hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
         vAxis: { textStyle: { color: '#ffffff', fontSize: 18 } },
-        colors: ['#a78bfa'],
-        animation: { startup: false, duration: 400, easing: 'out' }
+        colors: ['#a78bfa']
       });
     }
 
@@ -586,25 +585,20 @@
     }
 
     function formatInt(value) {
-      const n = Number(value || 0);
+      const n = toNumber(value);
       return new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 0 }).format(n);
     }
 
     function formatSignedInt(value) {
-      const n = Number(value || 0);
+      const n = toNumber(value);
       const formatted = formatInt(Math.abs(n));
       return `${n >= 0 ? '+' : '-'}${formatted}`;
     }
 
     function formatSignedPercent(value) {
-      const n = Number(value || 0);
+      const n = toNumber(value);
       const formatted = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(n));
       return `${n >= 0 ? '+' : '-'}${formatted}%`;
-    }
-
-    function parseNumber(value) {
-      if (typeof value === 'number') return value;
-      return Number(String(value).replace(/\s/g, '').replace(',', '.').replace('%', '')) || 0;
     }
 
     function escapeHtml(text) {
