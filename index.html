@@ -245,7 +245,7 @@
       background: var(--accent);
       width: 0;
       animation: progressBar linear infinite;
-      animation-duration: var(--rotation, 60s);
+      animation-duration: var(--rotation, 30s);
     }
 
     .loading,
@@ -277,7 +277,7 @@
   <script>
     const CONFIG = {
       spreadsheetId: '1oP7cxDdI-H56Pgh6nuYy8Vp7b32PCqzeJijNg27i1O8',
-      rotationSeconds: 60,
+      rotationSeconds: 30,
       yearReferenceFallback: 2025,
       yearCurrentFallback: 2026
     };
@@ -445,7 +445,8 @@
                   </div>
                 </div>
                 <div class="message">
-                <div class="value">${escapeHtml(data.weekly.message)}</div>
+                  <div class="label">Mensagem de leitura</div>
+                  <div class="value">${escapeHtml(data.weekly.message)}</div>
                 </div>
               </div>
             </div>
@@ -478,7 +479,8 @@
             <div class="header">
               <div>
                 <h1 class="title">Resumo semanal</h1>
-                 </div>
+                <div class="subtitle">Tabela curta para leitura rápida na TV</div>
+              </div>
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content panel table-wrap">
@@ -520,57 +522,87 @@
     }
 
     function drawChart1(data) {
-      const table = new google.visualization.DataTable();
-      table.addColumn('string', 'Semana');
-      table.addColumn('number', String(data.yearReference));
-      table.addColumn('number', String(data.yearCurrent));
-      data.seriesRows.forEach(row => table.addRow([row.semana, row.yRef, row.yCur]));
+  const table = new google.visualization.DataTable();
+  table.addColumn('string', 'Semana');
+  table.addColumn('number', String(data.yearReference));
+  table.addColumn('number', String(data.yearCurrent));
+  data.seriesRows.forEach(row => table.addRow([row.semana, row.yRef, row.yCur]));
 
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
-      chart.draw(table, {
-        backgroundColor: '#0f0f0f',
-        chartArea: { left: 80, top: 35, width: '82%', height: '72%' },
-        legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
-        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
-        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
-        colors: ['#60a5fa', '#34d399']
-      });
-    }
+  const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
+  chart.draw(table, {
+    backgroundColor: '#0f0f0f',
+    chartArea: { left: 90, top: 45, width: '82%', height: '72%' },
+    legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
+    hAxis: {
+      title: 'Semana',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 18 },
+      baselineColor: '#555'
+    },
+    vAxis: {
+      title: 'Produção (kg)',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 16 },
+      gridlines: { color: '#333' },
+      baselineColor: '#555'
+    },
+    colors: ['#60a5fa', '#34d399']
+  });
+}
 
-    function drawChart2(data) {
-      const table = new google.visualization.DataTable();
-      table.addColumn('string', 'Semana');
-      table.addColumn('number', 'Dif. %');
-      data.tableRows.forEach(row => table.addRow([row.semana, row.difPct]));
+    unction drawChart2(data) {
+  const table = new google.visualization.DataTable();
+  table.addColumn('string', 'Semana');
+  table.addColumn('number', 'Diferença (%)');
+  data.tableRows.forEach(row => table.addRow([row.semana, row.difPct]));
 
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
-      chart.draw(table, {
-        backgroundColor: '#0f0f0f',
-        chartArea: { left: 80, top: 35, width: '82%', height: '72%' },
-        legend: 'none',
-        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, baselineColor: '#555' },
-        vAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
-        colors: ['#f59e0b']
-      });
-    }
-
+  const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
+  chart.draw(table, {
+    backgroundColor: '#0f0f0f',
+    chartArea: { left: 90, top: 50, width: '84%', height: '70%' },
+    legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
+    hAxis: {
+      title: 'Semana',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 20 },
+      baselineColor: '#555'
+    },
+    vAxis: {
+      title: 'Diferença (%)',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 18 },
+      gridlines: { color: '#333' },
+      baselineColor: '#555',
+      format: "#'%'"
+    },
+    colors: ['#f59e0b']
+  });
+}
     function drawChart3(data) {
-      const table = google.visualization.arrayToDataTable([
-        ['Indicador', 'Valor'],
-        ['Produção/dia', toNumber(data.efficiency.perDay)],
-        ['Produção/hora', toNumber(data.efficiency.perHour)]
-      ]);
+  const table = google.visualization.arrayToDataTable([
+    ['Indicador', 'Valor'],
+    ['Produção/dia (kg)', toNumber(data.efficiency.perDay)],
+    ['Produção/hora (kg/h)', toNumber(data.efficiency.perHour)]
+  ]);
 
-      const chart = new google.visualization.BarChart(document.getElementById('chart3'));
-      chart.draw(table, {
-        backgroundColor: '#0f0f0f',
-        chartArea: { left: 140, top: 35, width: '70%', height: '70%' },
-        legend: 'none',
-        hAxis: { textStyle: { color: '#ffffff', fontSize: 16 }, gridlines: { color: '#333' }, baselineColor: '#555' },
-        vAxis: { textStyle: { color: '#ffffff', fontSize: 18 } },
-        colors: ['#a78bfa']
-      });
-    }
+  const chart = new google.visualization.BarChart(document.getElementById('chart3'));
+  chart.draw(table, {
+    backgroundColor: '#0f0f0f',
+    chartArea: { left: 220, top: 55, width: '72%', height: '50%' },
+    legend: 'none',
+    hAxis: {
+      title: 'Quantidade',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 20 },
+      gridlines: { color: '#333' },
+      baselineColor: '#555'
+    },
+    vAxis: {
+      textStyle: { color: '#ffffff', fontSize: 24 }
+    },
+    colors: ['#a78bfa']
+  });
+}
 
     function startRotation(rotationSeconds, data) {
   const slides = document.querySelectorAll('.slide');
@@ -581,7 +613,7 @@
     current = (current + 1) % slides.length;
     slides[current].classList.add('active');
 
-    // redesenha os gráficos depois do slide ficar visível
+    // redesenha os gráficos depois de o slide ficar visível
     setTimeout(() => {
       drawAllCharts(data);
     }, 150);
