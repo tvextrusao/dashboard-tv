@@ -152,7 +152,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -443,24 +443,24 @@
             </div>
             <div class="content">
               <div class="panel chart-box"><div id="chart2" class="chart-canvas"></div></div>
-              <div class="panel" style="padding:20px;">
-                <div class="kpi-grid-2" style="margin-bottom:16px;">
-                  <div class="kpi">
-                    <div class="kpi-label">Melhor semana</div>
-                    <div class="kpi-value medium">${escapeHtml(data.weekly.bestWeek.week)}</div>
-                    <div class="kpi-label text-good" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.bestWeek.value)}</div>
-                  </div>
-                  <div class="kpi">
-                    <div class="kpi-label">Pior semana</div>
-                    <div class="kpi-value medium">${escapeHtml(data.weekly.worstWeek.week)}</div>
-                    <div class="kpi-label text-bad" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.worstWeek.value)}</div>
-                  </div>
-                </div>
-                <div class="message">
-                  <div class="value">${escapeHtml(data.weekly.message)}</div>
-              </div>
-            </div>
-          </div>
+              <div class="panel" style="padding:20px; display:grid; grid-template-rows:auto 1fr; gap:16px; min-height:0;">
+  <div class="kpi-grid-2">
+    <div class="kpi">
+      <div class="kpi-label">Melhor semana</div>
+      <div class="kpi-value medium">${escapeHtml(data.weekly.bestWeek.week)}</div>
+      <div class="kpi-label text-good" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.bestWeek.value)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Pior semana</div>
+      <div class="kpi-value medium">${escapeHtml(data.weekly.worstWeek.week)}</div>
+      <div class="kpi-label text-bad" style="margin-top:12px; font-size:28px;">${escapeHtml(data.weekly.worstWeek.value)}</div>
+    </div>
+  </div>
+  <div class="message">
+    <div class="label">Mensagem de leitura</div>
+    <div class="value">${escapeHtml(data.weekly.message)}</div>
+  </div>
+</div>
         </section>
 
         <section class="slide slide-3">
