@@ -391,6 +391,12 @@
           diffAbs: formatSignedInt(kpis.wasteDiffAbs),
           diffPct: formatSignedPercent(kpis.wasteDiffPct)
         },
+          kgh: {
+          y2025: toNumber(kpis.kgh2025),
+          y2026: toNumber(kpis.kgh2026),
+          diffAbs: formatSignedInt(kpis.kghDiffAbs),
+          diffPct: formatSignedPercent(kpis.kghDiffPct)
+        },
         seriesRows: seriesRows.map(row => ({
           semana: String(row.semana || row.Semana || ''),
           yRef: toNumber(row[yearReference]),
@@ -529,7 +535,36 @@
           </div>
         </section>
 
-        <section class="slide slide-5">
+                <section class="slide slide-5">
+          <div class="layout">
+            <div class="header">
+              <div>
+                <h1 class="title">Kg/hora</h1>
+                <div class="subtitle">Comparação ${data.yearCurrent} vs ${data.yearReference}</div>
+              </div>
+              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
+            </div>
+            <div class="content">
+              <div class="panel chart-box"><div id="chart5" class="chart-canvas"></div></div>
+              <div class="kpi-grid-3">
+                <div class="kpi">
+                  <div class="kpi-label">Kg/hora ${data.yearCurrent}</div>
+                  <div class="kpi-value">${escapeHtml(formatInt(data.kgh.y2026))}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Variação absoluta</div>
+                  <div class="kpi-value ${data.kgh.diffAbs.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.kgh.diffAbs)}</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Variação %</div>
+                  <div class="kpi-value ${data.kgh.diffPct.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.kgh.diffPct)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide slide-6">
           <div class="layout">
             <div class="header">
               <div>
@@ -584,6 +619,7 @@
   drawChart2(data);
   drawChart3(data);
   drawChart4(data);
+  drawChart5(data);
 }
 
     function drawChart1(data) {
@@ -677,19 +713,11 @@
     [String(data.yearCurrent), data.waste.y2026]
   ]);
 
-  const chart = new google.visualization.ComboChart(document.getElementById('chart4'));
+  const chart = new google.visualization.ColumnChart(document.getElementById('chart4'));
   chart.draw(table, {
     backgroundColor: '#0f0f0f',
     chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
     legend: 'none',
-    seriesType: 'bars',
-    series: {
-      0: {
-        type: 'line',
-        lineWidth: 2,
-        pointSize: 6
-      }
-    },
     hAxis: {
       title: 'Ano',
       titleTextStyle: { color: '#ffffff', fontSize: 18 },
@@ -707,6 +735,34 @@
   });
 }
 
+function drawChart5(data) {
+  const table = google.visualization.arrayToDataTable([
+    ['Ano', 'Kg/hora'],
+    [String(data.yearReference), data.kgh.y2025],
+    [String(data.yearCurrent), data.kgh.y2026]
+  ]);
+
+  const chart = new google.visualization.ColumnChart(document.getElementById('chart5'));
+  chart.draw(table, {
+    backgroundColor: '#0f0f0f',
+    chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
+    legend: 'none',
+    hAxis: {
+      title: 'Ano',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 20 },
+      baselineColor: '#555'
+    },
+    vAxis: {
+      title: 'Kg/hora',
+      titleTextStyle: { color: '#ffffff', fontSize: 18 },
+      textStyle: { color: '#ffffff', fontSize: 16 },
+      gridlines: { color: '#333' },
+      baselineColor: '#555'
+    },
+    colors: ['#4f7ac8']
+  });
+}
     function startRotation(rotationSeconds, data) {
       const slides = document.querySelectorAll('.slide');
       let current = 0;
