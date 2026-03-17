@@ -715,12 +715,6 @@
     }
 
     function drawChart4(data) {
-  const minWaste = Math.min(data.waste.y2025, data.waste.y2026);
-  const maxWaste = Math.max(data.waste.y2025, data.waste.y2026);
-
-  const viewMin = Math.floor((minWaste - 8000) / 5000) * 5000;
-  const viewMax = Math.ceil((maxWaste + 3000) / 5000) * 5000;
-
   const table = google.visualization.arrayToDataTable([
     ['Ano', 'Desperdício', { role: 'annotation' }],
     [String(data.yearReference), data.waste.y2025, formatInt(data.waste.y2025)],
@@ -749,11 +743,12 @@
       title: 'Desperdício (kg)',
       titleTextStyle: { color: '#ffffff', fontSize: 18 },
       textStyle: { color: '#ffffff', fontSize: 16 },
-      gridlines: { color: '#333', count: 6 },
+      gridlines: { color: '#333', count: 11 },
       baselineColor: '#555',
+      ticks: [50000, 55000, 60000, 65000, 70000, 75000, 80000, 85000, 90000, 95000, 100000],
       viewWindow: {
-        min: viewMin,
-        max: viewMax
+        min: 50000,
+        max: 100000
       }
     },
     colors: ['#4f7ac8']
@@ -761,12 +756,6 @@
 }
 
 function drawChart5(data) {
-  const minKgh = Math.min(data.kgh.y2025, data.kgh.y2026);
-  const maxKgh = Math.max(data.kgh.y2025, data.kgh.y2026);
-
-  const viewMin = Math.floor((minKgh - 10) / 10) * 10;
-  const viewMax = Math.ceil((maxKgh + 10) / 10) * 10;
-
   const table = google.visualization.arrayToDataTable([
     ['Ano', 'Kg/hora', { role: 'annotation' }],
     [String(data.yearReference), data.kgh.y2025, formatInt(data.kgh.y2025)],
@@ -797,9 +786,10 @@ function drawChart5(data) {
       textStyle: { color: '#ffffff', fontSize: 16 },
       gridlines: { color: '#333', count: 6 },
       baselineColor: '#555',
+      ticks: [100, 120, 140, 160, 180, 200],
       viewWindow: {
-        min: viewMin,
-        max: viewMax
+        min: 100,
+        max: 200
       }
     },
     colors: ['#4f7ac8']
