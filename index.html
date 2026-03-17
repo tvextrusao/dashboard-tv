@@ -715,10 +715,16 @@
     }
 
     function drawChart4(data) {
+  const minWaste = Math.min(data.waste.y2025, data.waste.y2026);
+  const maxWaste = Math.max(data.waste.y2025, data.waste.y2026);
+
+  const viewMin = Math.floor((minWaste - 8000) / 5000) * 5000;
+  const viewMax = Math.ceil((maxWaste + 3000) / 5000) * 5000;
+
   const table = google.visualization.arrayToDataTable([
-    ['Ano', 'Desperdício'],
-    [String(data.yearReference), data.waste.y2025],
-    [String(data.yearCurrent), data.waste.y2026]
+    ['Ano', 'Desperdício', { role: 'annotation' }],
+    [String(data.yearReference), data.waste.y2025, formatInt(data.waste.y2025)],
+    [String(data.yearCurrent), data.waste.y2026, formatInt(data.waste.y2026)]
   ]);
 
   const chart = new google.visualization.ColumnChart(document.getElementById('chart4'));
@@ -726,28 +732,45 @@
     backgroundColor: '#0f0f0f',
     chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
     legend: 'none',
+    bar: { groupWidth: '38%' },
+    annotations: {
+      textStyle: {
+        color: '#ffffff',
+        fontSize: 18,
+        bold: true
+      }
+    },
     hAxis: {
-      title: 'Ano',
-      titleTextStyle: { color: '#ffffff', fontSize: 18 },
-      textStyle: { color: '#ffffff', fontSize: 20 },
+      title: '',
+      textStyle: { color: '#ffffff', fontSize: 18 },
       baselineColor: '#555'
     },
     vAxis: {
       title: 'Desperdício (kg)',
       titleTextStyle: { color: '#ffffff', fontSize: 18 },
       textStyle: { color: '#ffffff', fontSize: 16 },
-      gridlines: { color: '#333' },
-      baselineColor: '#555'
+      gridlines: { color: '#333', count: 6 },
+      baselineColor: '#555',
+      viewWindow: {
+        min: viewMin,
+        max: viewMax
+      }
     },
     colors: ['#4f7ac8']
   });
 }
 
 function drawChart5(data) {
+  const minKgh = Math.min(data.kgh.y2025, data.kgh.y2026);
+  const maxKgh = Math.max(data.kgh.y2025, data.kgh.y2026);
+
+  const viewMin = Math.floor((minKgh - 10) / 10) * 10;
+  const viewMax = Math.ceil((maxKgh + 10) / 10) * 10;
+
   const table = google.visualization.arrayToDataTable([
-    ['Ano', 'Kg/hora'],
-    [String(data.yearReference), data.kgh.y2025],
-    [String(data.yearCurrent), data.kgh.y2026]
+    ['Ano', 'Kg/hora', { role: 'annotation' }],
+    [String(data.yearReference), data.kgh.y2025, formatInt(data.kgh.y2025)],
+    [String(data.yearCurrent), data.kgh.y2026, formatInt(data.kgh.y2026)]
   ]);
 
   const chart = new google.visualization.ColumnChart(document.getElementById('chart5'));
@@ -755,18 +778,29 @@ function drawChart5(data) {
     backgroundColor: '#0f0f0f',
     chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
     legend: 'none',
+    bar: { groupWidth: '38%' },
+    annotations: {
+      textStyle: {
+        color: '#ffffff',
+        fontSize: 18,
+        bold: true
+      }
+    },
     hAxis: {
-      title: 'Ano',
-      titleTextStyle: { color: '#ffffff', fontSize: 18 },
-      textStyle: { color: '#ffffff', fontSize: 20 },
+      title: '',
+      textStyle: { color: '#ffffff', fontSize: 18 },
       baselineColor: '#555'
     },
     vAxis: {
       title: 'Kg/hora',
       titleTextStyle: { color: '#ffffff', fontSize: 18 },
       textStyle: { color: '#ffffff', fontSize: 16 },
-      gridlines: { color: '#333' },
-      baselineColor: '#555'
+      gridlines: { color: '#333', count: 6 },
+      baselineColor: '#555',
+      viewWindow: {
+        min: viewMin,
+        max: viewMax
+      }
     },
     colors: ['#4f7ac8']
   });
