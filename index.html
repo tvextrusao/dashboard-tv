@@ -90,27 +90,42 @@
     }
 
     .chart-box {
-      padding: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
+  padding: 12px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+  background: #0f0f0f;
+}
 
     .chart-canvas {
-      width: 100%;
-      height: 100%;
-      min-height: 300px;
-      border-radius: 14px;
-      background: #0f0f0f !important;
-    }
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border-radius: 14px;
+  background: #0f0f0f !important;
+  position: relative;
+}
 
     .chart-canvas,
     .chart-canvas > div,
     .chart-canvas svg {
       background: #0f0f0f !important;
     }
+.chart-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #0f0f0f;
+  border-radius: 14px;
+  z-index: 0;
+}
 
+.chart-canvas > div {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
     .kpi-grid-3,
     .kpi-grid-4,
     .kpi-grid-2 {
@@ -726,7 +741,7 @@
       const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
       chart.draw(table, {
         backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 45, width: '82%', height: '72%' },
+        chartArea: { left: 90, top: 45, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
         legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
         hAxis: {
           title: 'Semana',
@@ -754,7 +769,7 @@
       const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
       chart.draw(table, {
         backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '84%', height: '70%' },
+        chartArea: { left: 90, top: 50, width: '84%', height: '70%', backgroundColor: { fill: '#0f0f0f' } },
         legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
         hAxis: {
           title: 'Semana',
@@ -784,7 +799,7 @@
       const chart = new google.visualization.BarChart(document.getElementById('chart3'));
       chart.draw(table, {
         backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 220, top: 55, width: '72%', height: '50%' },
+        chartArea: { left: 220, top: 55, width: '72%', height: '50%', backgroundColor: { fill: '#0f0f0f' } },
         legend: 'none',
         hAxis: {
           title: 'Quantidade',
@@ -810,7 +825,7 @@
       const chart = new google.visualization.ColumnChart(document.getElementById('chart4'));
       chart.draw(table, {
         backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
+        chartArea: { left: 90, top: 50, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
         legend: 'none',
         bar: { groupWidth: '38%' },
         annotations: {
@@ -851,7 +866,7 @@
       const chart = new google.visualization.ColumnChart(document.getElementById('chart5'));
       chart.draw(table, {
         backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
+        chartArea: { left: 90, top: 50, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
         legend: 'none',
         bar: { groupWidth: '38%' },
         annotations: {
