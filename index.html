@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard Produção TV</title>
   <meta http-equiv="refresh" content="1800" />
-  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -90,42 +90,23 @@
     }
 
     .chart-box {
-  padding: 12px;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  overflow: hidden;
-  background: #0f0f0f;
-}
+      padding: 12px;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      overflow: hidden;
+      background: #0f0f0f;
+    }
 
     .chart-canvas {
-  width: 100%;
-  height: 100%;
-  min-height: 300px;
-  border-radius: 14px;
-  background: #0f0f0f !important;
-  position: relative;
-}
-
-    .chart-canvas,
-    .chart-canvas > div,
-    .chart-canvas svg {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      border-radius: 14px;
       background: #0f0f0f !important;
+      display: block;
     }
-.chart-canvas::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: #0f0f0f;
-  border-radius: 14px;
-  z-index: 0;
-}
 
-.chart-canvas > div {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-}
     .kpi-grid-3,
     .kpi-grid-4,
     .kpi-grid-2 {
@@ -175,12 +156,6 @@
       justify-content: center;
       min-height: 0;
       overflow: hidden;
-    }
-
-    .message .label {
-      font-size: 16px;
-      color: var(--muted);
-      margin-bottom: 8px;
     }
 
     .message .value {
@@ -331,7 +306,6 @@
 
       .timestamp,
       .footer-note,
-      .message .label,
       .kpi-label,
       thead th {
         font-size: 14px;
@@ -385,16 +359,9 @@
       yearCurrentFallback: 2026
     };
 
-    const DARK_CHART_BG = {
-      fill: '#0f0f0f',
-      stroke: '#0f0f0f',
-      strokeWidth: 0
-    };
-
     document.documentElement.style.setProperty('--rotation', `${CONFIG.rotationSeconds}s`);
 
-    google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(initDashboard);
+    let chart1, chart2, chart3, chart4, chart5;
 
     async function initDashboard() {
       try {
@@ -532,7 +499,7 @@
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box"><div id="chart1" class="chart-canvas"></div></div>
+              <div class="panel chart-box"><canvas id="chart1" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
                 <div class="kpi">
                   <div class="kpi-label">Total ${data.yearCurrent}</div>
@@ -561,7 +528,7 @@
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box"><div id="chart2" class="chart-canvas"></div></div>
+              <div class="panel chart-box"><canvas id="chart2" class="chart-canvas"></canvas></div>
               <div class="panel" style="padding:16px; display:grid; grid-template-rows:auto 1fr; gap:12px; min-height:0;">
                 <div class="kpi-grid-2">
                   <div class="kpi">
@@ -593,7 +560,7 @@
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box"><div id="chart3" class="chart-canvas"></div></div>
+              <div class="panel chart-box"><canvas id="chart3" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-4">
                 <div class="kpi">
                   <div class="kpi-label">Dias corridos</div>
@@ -626,7 +593,7 @@
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box"><div id="chart4" class="chart-canvas"></div></div>
+              <div class="panel chart-box"><canvas id="chart4" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
                 <div class="kpi">
                   <div class="kpi-label">Desperdício ${data.yearCurrent}</div>
@@ -655,7 +622,7 @@
               <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
             </div>
             <div class="content">
-              <div class="panel chart-box"><div id="chart5" class="chart-canvas"></div></div>
+              <div class="panel chart-box"><canvas id="chart5" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
                 <div class="kpi">
                   <div class="kpi-label">Kg/hora ${data.yearCurrent}</div>
@@ -723,6 +690,39 @@
         </tr>`).join('');
     }
 
+    function destroyIfExists(chart) {
+      if (chart) chart.destroy();
+    }
+
+    function baseOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: '#ffffff',
+              font: { size: 16 }
+            }
+          },
+          tooltip: {
+            enabled: true
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#ffffff', font: { size: 16 } },
+            grid: { color: '#333' }
+          },
+          y: {
+            ticks: { color: '#ffffff', font: { size: 14 } },
+            grid: { color: '#333' }
+          }
+        }
+      };
+    }
+
     function drawAllCharts(data) {
       drawChart1(data);
       drawChart2(data);
@@ -732,168 +732,205 @@
     }
 
     function drawChart1(data) {
-      const table = new google.visualization.DataTable();
-      table.addColumn('string', 'Semana');
-      table.addColumn('number', String(data.yearReference));
-      table.addColumn('number', String(data.yearCurrent));
-      data.seriesRows.forEach(row => table.addRow([row.semana, row.yRef, row.yCur]));
-
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
-      chart.draw(table, {
-        backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 45, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
-        legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
-        hAxis: {
-          title: 'Semana',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 18 },
-          baselineColor: '#555'
+      destroyIfExists(chart1);
+      const ctx = document.getElementById('chart1').getContext('2d');
+      chart1 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.seriesRows.map(r => r.semana),
+          datasets: [
+            {
+              label: String(data.yearReference),
+              data: data.seriesRows.map(r => r.yRef),
+              backgroundColor: '#60a5fa'
+            },
+            {
+              label: String(data.yearCurrent),
+              data: data.seriesRows.map(r => r.yCur),
+              backgroundColor: '#34d399'
+            }
+          ]
         },
-        vAxis: {
-          title: 'Produção (kg)',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 16 },
-          gridlines: { color: '#333' },
-          baselineColor: '#555'
-        },
-        colors: ['#60a5fa', '#34d399']
+        options: {
+          ...baseOptions(),
+          plugins: {
+            ...baseOptions().plugins,
+            legend: {
+              labels: {
+                color: '#ffffff',
+                font: { size: 16 }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#ffffff', font: { size: 16 } },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Semana', color: '#ffffff', font: { size: 16 } }
+            },
+            y: {
+              ticks: { color: '#ffffff', font: { size: 14 } },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Produção (kg)', color: '#ffffff', font: { size: 16 } }
+            }
+          }
+        }
       });
     }
 
     function drawChart2(data) {
-      const table = new google.visualization.DataTable();
-      table.addColumn('string', 'Semana');
-      table.addColumn('number', 'Diferença (%)');
-      data.tableRows.forEach(row => table.addRow([row.semana, row.difPct]));
-
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
-      chart.draw(table, {
-        backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '84%', height: '70%', backgroundColor: { fill: '#0f0f0f' } },
-        legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
-        hAxis: {
-          title: 'Semana',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 20 },
-          baselineColor: '#555'
+      destroyIfExists(chart2);
+      const ctx = document.getElementById('chart2').getContext('2d');
+      chart2 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.tableRows.map(r => r.semana),
+          datasets: [{
+            label: 'Diferença (%)',
+            data: data.tableRows.map(r => r.difPct),
+            backgroundColor: '#f59e0b'
+          }]
         },
-        vAxis: {
-          title: 'Diferença (%)',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 18 },
-          gridlines: { color: '#333' },
-          baselineColor: '#555',
-          format: "#'%'"
-        },
-        colors: ['#f59e0b']
+        options: {
+          ...baseOptions(),
+          plugins: {
+            ...baseOptions().plugins,
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#ffffff', font: { size: 16 } },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Semana', color: '#ffffff', font: { size: 16 } }
+            },
+            y: {
+              ticks: {
+                color: '#ffffff',
+                font: { size: 14 },
+                callback: value => `${value}%`
+              },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Diferença (%)', color: '#ffffff', font: { size: 16 } }
+            }
+          }
+        }
       });
     }
 
     function drawChart3(data) {
-      const table = google.visualization.arrayToDataTable([
-        ['Indicador', 'Valor'],
-        ['Prod/dia (kg)', toNumber(data.efficiency.perDay)],
-        ['Prod/hora (kg/h)', toNumber(data.efficiency.perHour)]
-      ]);
-
-      const chart = new google.visualization.BarChart(document.getElementById('chart3'));
-      chart.draw(table, {
-        backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 220, top: 55, width: '72%', height: '50%', backgroundColor: { fill: '#0f0f0f' } },
-        legend: 'none',
-        hAxis: {
-          title: 'Quantidade',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 20 },
-          gridlines: { color: '#333' },
-          baselineColor: '#555'
+      destroyIfExists(chart3);
+      const ctx = document.getElementById('chart3').getContext('2d');
+      chart3 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Produção/dia (kg)', 'Produção/hora (kg/h)'],
+          datasets: [{
+            label: 'Valor',
+            data: [toNumber(data.efficiency.perDay), toNumber(data.efficiency.perHour)],
+            backgroundColor: '#a78bfa'
+          }]
         },
-        vAxis: {
-          textStyle: { color: '#ffffff', fontSize: 24 }
-        },
-        colors: ['#a78bfa']
+        options: {
+          ...baseOptions(),
+          indexAxis: 'y',
+          plugins: {
+            ...baseOptions().plugins,
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#ffffff', font: { size: 14 } },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Quantidade', color: '#ffffff', font: { size: 16 } }
+            },
+            y: {
+              ticks: { color: '#ffffff', font: { size: 18 } },
+              grid: { color: '#333' }
+            }
+          }
+        }
       });
     }
 
     function drawChart4(data) {
-      const table = google.visualization.arrayToDataTable([
-        ['Ano', 'Desperdício', { role: 'annotation' }],
-        [String(data.yearReference), data.waste.y2025, formatInt(data.waste.y2025)],
-        [String(data.yearCurrent), data.waste.y2026, formatInt(data.waste.y2026)]
-      ]);
-
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart4'));
-      chart.draw(table, {
-        backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
-        legend: 'none',
-        bar: { groupWidth: '38%' },
-        annotations: {
-          textStyle: {
-            color: '#ffffff',
-            fontSize: 18,
-            bold: true
+      destroyIfExists(chart4);
+      const ctx = document.getElementById('chart4').getContext('2d');
+      chart4 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [String(data.yearReference), String(data.yearCurrent)],
+          datasets: [{
+            data: [data.waste.y2025, data.waste.y2026],
+            backgroundColor: '#4f7ac8',
+            barPercentage: 0.5,
+            categoryPercentage: 0.6
+          }]
+        },
+        options: {
+          ...baseOptions(),
+          plugins: {
+            ...baseOptions().plugins,
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#ffffff', font: { size: 16 } },
+              grid: { color: '#333' }
+            },
+            y: {
+              min: 50000,
+              max: 100000,
+              ticks: {
+                stepSize: 5000,
+                color: '#ffffff',
+                font: { size: 14 }
+              },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Desperdício (kg)', color: '#ffffff', font: { size: 16 } }
+            }
           }
-        },
-        hAxis: {
-          title: '',
-          textStyle: { color: '#ffffff', fontSize: 18 },
-          baselineColor: '#555'
-        },
-        vAxis: {
-          title: 'Desperdício (kg)',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 16 },
-          gridlines: { color: '#333', count: 11 },
-          baselineColor: '#555',
-          ticks: [50000, 55000, 60000, 65000, 70000, 75000, 80000, 85000, 90000, 95000, 100000],
-          viewWindow: {
-            min: 50000,
-            max: 100000
-          }
-        },
-        colors: ['#4f7ac8']
+        }
       });
     }
 
     function drawChart5(data) {
-      const table = google.visualization.arrayToDataTable([
-        ['Ano', 'Kg/hora', { role: 'annotation' }],
-        [String(data.yearReference), data.kgh.y2025, formatInt(data.kgh.y2025)],
-        [String(data.yearCurrent), data.kgh.y2026, formatInt(data.kgh.y2026)]
-      ]);
-
-      const chart = new google.visualization.ColumnChart(document.getElementById('chart5'));
-      chart.draw(table, {
-        backgroundColor: DARK_CHART_BG,
-        chartArea: { left: 90, top: 50, width: '82%', height: '72%', backgroundColor: { fill: '#0f0f0f' } },
-        legend: 'none',
-        bar: { groupWidth: '38%' },
-        annotations: {
-          textStyle: {
-            color: '#ffffff',
-            fontSize: 18,
-            bold: true
+      destroyIfExists(chart5);
+      const ctx = document.getElementById('chart5').getContext('2d');
+      chart5 = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [String(data.yearReference), String(data.yearCurrent)],
+          datasets: [{
+            data: [data.kgh.y2025, data.kgh.y2026],
+            backgroundColor: '#4f7ac8',
+            barPercentage: 0.5,
+            categoryPercentage: 0.6
+          }]
+        },
+        options: {
+          ...baseOptions(),
+          plugins: {
+            ...baseOptions().plugins,
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#ffffff', font: { size: 16 } },
+              grid: { color: '#333' }
+            },
+            y: {
+              min: 100,
+              max: 200,
+              ticks: {
+                stepSize: 20,
+                color: '#ffffff',
+                font: { size: 14 }
+              },
+              grid: { color: '#333' },
+              title: { display: true, text: 'Kg/hora', color: '#ffffff', font: { size: 16 } }
+            }
           }
-        },
-        hAxis: {
-          title: '',
-          textStyle: { color: '#ffffff', fontSize: 18 },
-          baselineColor: '#555'
-        },
-        vAxis: {
-          title: 'Kg/hora',
-          titleTextStyle: { color: '#ffffff', fontSize: 18 },
-          textStyle: { color: '#ffffff', fontSize: 16 },
-          gridlines: { color: '#333', count: 6 },
-          baselineColor: '#555',
-          ticks: [100, 120, 140, 160, 180, 200],
-          viewWindow: {
-            min: 100,
-            max: 200
-          }
-        },
-        colors: ['#4f7ac8']
+        }
       });
     }
 
@@ -908,8 +945,7 @@
 
         setTimeout(() => {
           drawAllCharts(data);
-        }, 150);
-
+        }, 120);
       }, rotationSeconds * 1000);
     }
 
@@ -938,6 +974,8 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     }
+
+    initDashboard();
   </script>
 </body>
 </html>
