@@ -102,7 +102,13 @@
       height: 100%;
       min-height: 300px;
       border-radius: 14px;
-      background: #0f0f0f;
+      background: #0f0f0f !important;
+    }
+
+    .chart-canvas,
+    .chart-canvas > div,
+    .chart-canvas svg {
+      background: #0f0f0f !important;
     }
 
     .kpi-grid-3,
@@ -362,6 +368,12 @@
       rotationSeconds: 30,
       yearReferenceFallback: 2025,
       yearCurrentFallback: 2026
+    };
+
+    const DARK_CHART_BG = {
+      fill: '#0f0f0f',
+      stroke: '#0f0f0f',
+      strokeWidth: 0
     };
 
     document.documentElement.style.setProperty('--rotation', `${CONFIG.rotationSeconds}s`);
@@ -713,7 +725,7 @@
 
       const chart = new google.visualization.ColumnChart(document.getElementById('chart1'));
       chart.draw(table, {
-        backgroundColor: '#0f0f0f',
+        backgroundColor: DARK_CHART_BG,
         chartArea: { left: 90, top: 45, width: '82%', height: '72%' },
         legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
         hAxis: {
@@ -741,7 +753,7 @@
 
       const chart = new google.visualization.ColumnChart(document.getElementById('chart2'));
       chart.draw(table, {
-        backgroundColor: '#0f0f0f',
+        backgroundColor: DARK_CHART_BG,
         chartArea: { left: 90, top: 50, width: '84%', height: '70%' },
         legend: { position: 'top', textStyle: { color: '#ffffff', fontSize: 18 } },
         hAxis: {
@@ -771,7 +783,7 @@
 
       const chart = new google.visualization.BarChart(document.getElementById('chart3'));
       chart.draw(table, {
-        backgroundColor: '#0f0f0f',
+        backgroundColor: DARK_CHART_BG,
         chartArea: { left: 220, top: 55, width: '72%', height: '50%' },
         legend: 'none',
         hAxis: {
@@ -797,7 +809,7 @@
 
       const chart = new google.visualization.ColumnChart(document.getElementById('chart4'));
       chart.draw(table, {
-        backgroundColor: '#0f0f0f',
+        backgroundColor: DARK_CHART_BG,
         chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
         legend: 'none',
         bar: { groupWidth: '38%' },
@@ -838,7 +850,7 @@
 
       const chart = new google.visualization.ColumnChart(document.getElementById('chart5'));
       chart.draw(table, {
-        backgroundColor: '#0f0f0f',
+        backgroundColor: DARK_CHART_BG,
         chartArea: { left: 90, top: 50, width: '82%', height: '72%' },
         legend: 'none',
         bar: { groupWidth: '38%' },
