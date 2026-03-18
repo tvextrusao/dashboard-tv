@@ -792,8 +792,8 @@
     function drawChart3(data) {
       const table = google.visualization.arrayToDataTable([
         ['Indicador', 'Valor'],
-        ['Produção/dia (kg)', toNumber(data.efficiency.perDay)],
-        ['Produção/hora (kg/h)', toNumber(data.efficiency.perHour)]
+        ['Prod/dia (kg)', toNumber(data.efficiency.perDay)],
+        ['Prod/hora (kg/h)', toNumber(data.efficiency.perHour)]
       ]);
 
       const chart = new google.visualization.BarChart(document.getElementById('chart3'));
