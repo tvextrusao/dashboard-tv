@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard Produção TV</title>
-  <meta http-equiv="refresh" content="1800" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -34,9 +33,7 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    body {
-      position: relative;
-    }
+    body { position: relative; }
 
     .slide {
       display: none;
@@ -144,7 +141,7 @@
     .kpi-value.medium { font-size: 36px; }
 
     .text-good { color: var(--good); }
-    .text-bad { color: var(--bad); }
+    .text-bad  { color: var(--bad); }
 
     .message {
       background: var(--panel-2);
@@ -239,9 +236,7 @@
       grid-template-columns: 1.2fr 0.9fr;
     }
 
-    .slide-2 .content {
-      grid-template-columns: 1.3fr 0.9fr;
-    }
+    .slide-2 .content { grid-template-columns: 1.3fr 0.9fr; }
 
     .slide-6 .layout { grid-template-rows: auto 1fr; }
     .slide-6 .content { min-height: 0; }
@@ -275,13 +270,11 @@
 
     @keyframes progressBar {
       from { width: 0; }
-      to { width: 100%; }
+      to   { width: 100%; }
     }
 
     @media (max-width: 1366px), (max-height: 768px) {
-      .slide {
-        padding: 10px;
-      }
+      .slide { padding: 10px; }
 
       .layout,
       .slide-1 .content,
@@ -292,58 +285,22 @@
       .totals,
       .kpi-grid-2,
       .kpi-grid-3,
-      .kpi-grid-4 {
-        gap: 10px;
-      }
+      .kpi-grid-4 { gap: 10px; }
 
-      .title {
-        font-size: 28px;
-      }
-
-      .subtitle {
-        font-size: 15px;
-      }
-
+      .title         { font-size: 28px; }
+      .subtitle      { font-size: 15px; }
       .timestamp,
       .footer-note,
       .kpi-label,
-      thead th {
-        font-size: 14px;
-      }
-
-      .kpi {
-        padding: 12px;
-      }
-
-      .kpi-value {
-        font-size: 36px;
-      }
-
-      .kpi-value.medium {
-        font-size: 30px;
-      }
-
-      .chart-box {
-        padding: 10px;
-      }
-
-      .chart-canvas {
-        min-height: 250px;
-      }
-
-      tbody td {
-        font-size: 17px;
-        padding: 10px 8px;
-      }
-
-      .message {
-        padding: 12px;
-      }
-
-      .message .value {
-        font-size: 16px;
-        line-height: 1.18;
-      }
+      thead th       { font-size: 14px; }
+      .kpi           { padding: 12px; }
+      .kpi-value     { font-size: 36px; }
+      .kpi-value.medium { font-size: 30px; }
+      .chart-box     { padding: 10px; }
+      .chart-canvas  { min-height: 250px; }
+      tbody td       { font-size: 17px; padding: 10px 8px; }
+      .message       { padding: 12px; }
+      .message .value { font-size: 16px; line-height: 1.18; }
     }
   </style>
 </head>
@@ -352,37 +309,103 @@
   <div class="progress"></div>
 
   <script>
+    /* ─── CONFIG ─────────────────────────────────────────────────────────── */
     const CONFIG = {
       spreadsheetId: '1oP7cxDdI-H56Pgh6nuYy8Vp7b32PCqzeJijNg27i1O8',
       rotationSeconds: 30,
+      // Used only when the sheet doesn't provide these values
       yearReferenceFallback: 2025,
       yearCurrentFallback: 2026
     };
 
     document.documentElement.style.setProperty('--rotation', `${CONFIG.rotationSeconds}s`);
 
-    let chart1, chart2, chart3, chart4, chart5;
+    /* ─── CHART REGISTRY ─────────────────────────────────────────────────── */
+    // Single map instead of five numbered globals (chart1 … chart5)
+    const charts = {};
 
-    async function initDashboard() {
-      try {
-        const [kpisRaw, seriesRaw, resumoRaw] = await Promise.all([
-          fetchSheet('kpis'),
-          fetchSheet('series'),
-          fetchSheet('resumo')
-        ]);
-
-        const dashboardData = normalizeData(kpisRaw, seriesRaw, resumoRaw);
-        renderDashboard(dashboardData);
-        startRotation(dashboardData.rotationSeconds || CONFIG.rotationSeconds, dashboardData);
-        drawAllCharts(dashboardData);
-        window.addEventListener('resize', () => drawAllCharts(dashboardData));
-      } catch (error) {
-        document.getElementById('app').className = 'error';
-        document.getElementById('app').innerHTML = `Erro ao ler dados do Google Sheets.<br><br>${escapeHtml(error.message)}`;
-      }
+    function drawChart(id, config) {
+      if (charts[id]) charts[id].destroy();
+      const ctx = document.getElementById(id).getContext('2d');
+      charts[id] = new Chart(ctx, config);
     }
 
+    /* ─── SHARED CHART OPTIONS ───────────────────────────────────────────── */
+    // Built once, re-used via shallow merge — avoids calling baseOptions() N times per draw
+    const BASE_OPTIONS = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { labels: { color: '#ffffff', font: { size: 16 } } },
+        tooltip: { enabled: true }
+      },
+      scales: {
+        x: { ticks: { color: '#ffffff', font: { size: 16 } }, grid: { color: '#333' } },
+        y: { ticks: { color: '#ffffff', font: { size: 14 } }, grid: { color: '#333' } }
+      }
+    };
+
+    /**
+     * Returns a chart options object merged from BASE_OPTIONS.
+     * @param {{ xTitle?: string, yTitle?: string, yMin?: number, yMax?: number,
+     *           yStepSize?: number, yTickCallback?: Function,
+     *           isHorizontal?: boolean, hideLegend?: boolean }} overrides
+     */
+    function makeOptions(overrides = {}) {
+      const xScale = {
+        ticks: { color: '#ffffff', font: { size: overrides.isHorizontal ? 18 : 16 }, autoSkip: false },
+        grid: { color: '#333' },
+        ...(overrides.xTitle ? { title: { display: true, text: overrides.xTitle, color: '#ffffff', font: { size: 16 } } } : {})
+      };
+
+      const yScale = {
+        ticks: {
+          color: '#ffffff',
+          font: { size: 14 },
+          ...(overrides.yStepSize ? { stepSize: overrides.yStepSize } : {}),
+          ...(overrides.yTickCallback ? { callback: overrides.yTickCallback } : {})
+        },
+        grid: { color: '#333' },
+        ...(overrides.min !== undefined ? { min: overrides.min } : {}),
+        ...(overrides.max !== undefined ? { max: overrides.max } : {}),
+        ...(overrides.yTitle ? { title: { display: true, text: overrides.yTitle, color: '#ffffff', font: { size: 16 } } } : {})
+      };
+
+      return {
+        ...BASE_OPTIONS,
+        ...(overrides.isHorizontal ? { indexAxis: 'y' } : {}),
+        plugins: {
+          ...BASE_OPTIONS.plugins,
+          legend: overrides.hideLegend
+            ? { display: false }
+            : BASE_OPTIONS.plugins.legend
+        },
+        scales: { x: xScale, y: yScale }
+      };
+    }
+
+    /* ─── AXIS RANGE HELPER ──────────────────────────────────────────────── */
+    /**
+     * Computes a rounded min/max range from data values with padding.
+     * Replaces hard-coded y-axis ranges in drawChart4 / drawChart5.
+     * @param {number[]} values
+     * @param {number}   paddingFactor  fraction of spread to add above/below
+     * @param {number}   roundTo        round boundaries to nearest N
+     */
+    function niceAxisRange(values, paddingFactor = 0.15, roundTo = 1000) {
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const pad = (max - min) * paddingFactor || max * paddingFactor;
+      return {
+        min: Math.floor((min - pad) / roundTo) * roundTo,
+        max: Math.ceil((max + pad)  / roundTo) * roundTo
+      };
+    }
+
+    /* ─── DATA FETCHING ──────────────────────────────────────────────────── */
     function sheetQueryUrl(sheetName) {
+      // Google Visualization query endpoint — returns JSONP-style wrapped JSON
       return `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json`;
     }
 
@@ -390,10 +413,12 @@
       const response = await fetch(sheetQueryUrl(sheetName));
       if (!response.ok) throw new Error(`Falha ao ler o separador ${sheetName}`);
       const raw = await response.text();
+      // Strip the JSONP wrapper: google.visualization.Query.setResponse( … );
       const json = JSON.parse(raw.substring(47).slice(0, -2));
       return json.table;
     }
 
+    /* ─── DATA NORMALISATION ─────────────────────────────────────────────── */
     function gvizTableToObjects(table) {
       const headers = table.cols.map(col => String(col.label || col.id || '').trim());
       return table.rows
@@ -411,20 +436,18 @@
     function toNumber(value) {
       if (typeof value === 'number') return value;
       if (value === null || value === undefined) return 0;
-
       const cleaned = String(value)
         .trim()
         .replace(/^'/, '')
         .replace(/\s/g, '')
         .replace('%', '')
         .replace(',', '.');
-
       const n = Number(cleaned);
       return Number.isFinite(n) ? n : 0;
     }
 
     function normalizeData(kpisTable, seriesTable, resumoTable) {
-      const kpisRows = gvizTableToObjects(kpisTable);
+      const kpisRows   = gvizTableToObjects(kpisTable);
       const seriesRows = gvizTableToObjects(seriesTable);
       const resumoRows = gvizTableToObjects(resumoTable);
 
@@ -435,98 +458,111 @@
       });
 
       const yearReference = String(kpis.yearReference || CONFIG.yearReferenceFallback);
-      const yearCurrent = String(kpis.yearCurrent || CONFIG.yearCurrentFallback);
+      const yearCurrent   = String(kpis.yearCurrent   || CONFIG.yearCurrentFallback);
 
       return {
         rotationSeconds: toNumber(kpis.rotationSeconds || CONFIG.rotationSeconds),
-        updatedAt: String(kpis.updatedAt || new Date().toLocaleString('pt-PT')),
+        updatedAt:   String(kpis.updatedAt || new Date().toLocaleString('pt-PT')),
         currentWeek: toNumber(kpis.currentWeek || 0),
         yearReference,
         yearCurrent,
         summary: {
           totalCurrent: formatInt(kpis.totalCurrent),
           diffAbsolute: formatSignedInt(kpis.diffAbsolute),
-          diffPercent: formatSignedPercent(kpis.diffPercent)
+          diffPercent:  formatSignedPercent(kpis.diffPercent)
         },
         weekly: {
-          bestWeek: { week: String(kpis.bestWeek || ''), value: formatSignedPercent(kpis.bestValue) },
+          bestWeek:  { week: String(kpis.bestWeek  || ''), value: formatSignedPercent(kpis.bestValue)  },
           worstWeek: { week: String(kpis.worstWeek || ''), value: formatSignedPercent(kpis.worstValue) },
           message: String(kpis.message || '')
         },
         efficiency: {
-          days: formatInt(kpis.days),
-          perDay: formatInt(kpis.perDay),
-          perHour: formatInt(kpis.perHour),
+          days:      formatInt(kpis.days),
+          perDay:    formatInt(kpis.perDay),
+          perHour:   formatInt(kpis.perHour),
           variation: formatSignedPercent(kpis.variation)
         },
         waste: {
-          y2025: toNumber(kpis.waste2025),
-          y2026: toNumber(kpis.waste2026),
+          y2025:   toNumber(kpis.waste2025),
+          y2026:   toNumber(kpis.waste2026),
           diffAbs: formatSignedInt(kpis.wasteDiffAbs),
           diffPct: formatSignedPercent(kpis.wasteDiffPct)
         },
         kgh: {
-          y2025: toNumber(kpis.kgh2025),
-          y2026: toNumber(kpis.kgh2026),
+          y2025:   toNumber(kpis.kgh2025),
+          y2026:   toNumber(kpis.kgh2026),
           diffAbs: formatSignedInt(kpis.kghDiffAbs),
           diffPct: formatSignedPercent(kpis.kghDiffPct)
         },
         seriesRows: seriesRows.map(row => ({
           semana: String(row.semana || row.Semana || ''),
-          yRef: toNumber(row[yearReference]),
-          yCur: toNumber(row[yearCurrent])
+          yRef:   toNumber(row[yearReference]),
+          yCur:   toNumber(row[yearCurrent])
         })).filter(row => row.semana),
         tableRows: resumoRows.map(row => ({
           semana: String(row.semana || row.Semana || ''),
-          ref: toNumber(row[yearReference]),
-          cur: toNumber(row[yearCurrent]),
-          difAbs: toNumber(row.dif_abs ?? row['Dif. Abs.'] ?? row.dif ?? 0),
-          difPct: toNumber(row.dif_pct ?? row['Dif. %'] ?? row.pct ?? 0)
+          ref:    toNumber(row[yearReference]),
+          cur:    toNumber(row[yearCurrent]),
+          difAbs: toNumber(row.dif_abs  ?? row['Dif. Abs.'] ?? row.dif ?? 0),
+          difPct: toNumber(row.dif_pct  ?? row['Dif. %']    ?? row.pct ?? 0)
         })).filter(row => row.semana)
       };
     }
 
-    function renderDashboard(data) {
-      document.getElementById('app').className = '';
-      document.getElementById('app').innerHTML = `
+    /* ─── SLIDE RENDERING ────────────────────────────────────────────────── */
+    function slideHeader(title, subtitle, updatedAt) {
+      return `
+        <div class="header">
+          <div>
+            <h1 class="title">${title}</h1>
+            ${subtitle ? `<div class="subtitle">${subtitle}</div>` : ''}
+          </div>
+          <div class="timestamp">Atualizado em<br>${escapeHtml(updatedAt)}</div>
+        </div>`;
+    }
+
+    function kpiBlock(label, value, extraClass = '') {
+      return `
+        <div class="kpi">
+          <div class="kpi-label">${label}</div>
+          <div class="kpi-value ${extraClass}">${escapeHtml(String(value))}</div>
+        </div>`;
+    }
+
+    function signClass(str) {
+      return String(str).startsWith('+') ? 'text-good' : 'text-bad';
+    }
+
+    function renderSlide1(data) {
+      return `
         <section class="slide slide-1 active">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Produção acumulada ${data.yearCurrent} vs ${data.yearReference}</h1>
-                <div class="subtitle">Até à semana ${data.currentWeek}</div>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader(
+              `Produção acumulada ${data.yearCurrent} vs ${data.yearReference}`,
+              `Até à semana ${data.currentWeek}`,
+              data.updatedAt
+            )}
             <div class="content">
               <div class="panel chart-box"><canvas id="chart1" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
-                <div class="kpi">
-                  <div class="kpi-label">Total ${data.yearCurrent}</div>
-                  <div class="kpi-value">${escapeHtml(data.summary.totalCurrent)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Desvio absoluto</div>
-                  <div class="kpi-value ${data.summary.diffAbsolute.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffAbsolute)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Desvio %</div>
-                  <div class="kpi-value ${data.summary.diffPercent.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffPercent)}</div>
-                </div>
+                ${kpiBlock(`Total ${data.yearCurrent}`, data.summary.totalCurrent)}
+                ${kpiBlock('Desvio absoluto', data.summary.diffAbsolute, signClass(data.summary.diffAbsolute))}
+                ${kpiBlock('Desvio %',        data.summary.diffPercent,  signClass(data.summary.diffPercent))}
               </div>
             </div>
           </div>
-        </section>
+        </section>`;
+    }
 
+    function renderSlide2(data) {
+      return `
         <section class="slide slide-2">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Produção por semana</h1>
-                <div class="subtitle">Comparação semanal ${data.yearCurrent} vs ${data.yearReference}</div>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader(
+              'Produção por semana',
+              `Comparação semanal ${data.yearCurrent} vs ${data.yearReference}`,
+              data.updatedAt
+            )}
             <div class="content">
               <div class="panel chart-box"><canvas id="chart2" class="chart-canvas"></canvas></div>
               <div class="panel" style="padding:16px; display:grid; grid-template-rows:auto 1fr; gap:12px; min-height:0;">
@@ -548,107 +584,66 @@
               </div>
             </div>
           </div>
-        </section>
+        </section>`;
+    }
 
+    function renderSlide3(data) {
+      return `
         <section class="slide slide-3">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Eficiência operacional</h1>
-                <div class="subtitle">Produção por dia e por hora</div>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader('Eficiência operacional', 'Produção por dia e por hora', data.updatedAt)}
             <div class="content">
               <div class="panel chart-box"><canvas id="chart3" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-4">
-                <div class="kpi">
-                  <div class="kpi-label">Dias corridos</div>
-                  <div class="kpi-value medium">${escapeHtml(data.efficiency.days)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Produção/dia</div>
-                  <div class="kpi-value medium">${escapeHtml(data.efficiency.perDay)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Produção/hora</div>
-                  <div class="kpi-value medium">${escapeHtml(data.efficiency.perHour)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Variação vs ${data.yearReference}</div>
-                  <div class="kpi-value medium ${data.efficiency.variation.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.efficiency.variation)}</div>
-                </div>
+                ${kpiBlock('Dias corridos',                     data.efficiency.days,      'medium')}
+                ${kpiBlock('Produção/dia',                      data.efficiency.perDay,    'medium')}
+                ${kpiBlock('Produção/hora',                     data.efficiency.perHour,   'medium')}
+                ${kpiBlock(`Variação vs ${data.yearReference}`, data.efficiency.variation, 'medium ' + signClass(data.efficiency.variation))}
               </div>
             </div>
           </div>
-        </section>
+        </section>`;
+    }
 
+    function renderSlide4(data) {
+      return `
         <section class="slide slide-4">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Desperdício</h1>
-                <div class="subtitle">Comparação ${data.yearCurrent} vs ${data.yearReference}</div>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader('Desperdício', `Comparação ${data.yearCurrent} vs ${data.yearReference}`, data.updatedAt)}
             <div class="content">
               <div class="panel chart-box"><canvas id="chart4" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
-                <div class="kpi">
-                  <div class="kpi-label">Desperdício ${data.yearCurrent}</div>
-                  <div class="kpi-value">${escapeHtml(formatInt(data.waste.y2026))}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Variação absoluta</div>
-                  <div class="kpi-value ${data.waste.diffAbs.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.waste.diffAbs)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Variação %</div>
-                  <div class="kpi-value ${data.waste.diffPct.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.waste.diffPct)}</div>
-                </div>
+                ${kpiBlock(`Desperdício ${data.yearCurrent}`, formatInt(data.waste.y2026))}
+                ${kpiBlock('Variação absoluta', data.waste.diffAbs, signClass(data.waste.diffAbs))}
+                ${kpiBlock('Variação %',        data.waste.diffPct, signClass(data.waste.diffPct))}
               </div>
             </div>
           </div>
-        </section>
+        </section>`;
+    }
 
+    function renderSlide5(data) {
+      return `
         <section class="slide slide-5">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Kg/hora</h1>
-                <div class="subtitle">Comparação ${data.yearCurrent} vs ${data.yearReference}</div>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader('Kg/hora', `Comparação ${data.yearCurrent} vs ${data.yearReference}`, data.updatedAt)}
             <div class="content">
               <div class="panel chart-box"><canvas id="chart5" class="chart-canvas"></canvas></div>
               <div class="kpi-grid-3">
-                <div class="kpi">
-                  <div class="kpi-label">Kg/hora ${data.yearCurrent}</div>
-                  <div class="kpi-value">${escapeHtml(formatInt(data.kgh.y2026))}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Variação absoluta</div>
-                  <div class="kpi-value ${data.kgh.diffAbs.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.kgh.diffAbs)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Variação %</div>
-                  <div class="kpi-value ${data.kgh.diffPct.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.kgh.diffPct)}</div>
-                </div>
+                ${kpiBlock(`Kg/hora ${data.yearCurrent}`, formatInt(data.kgh.y2026))}
+                ${kpiBlock('Variação absoluta', data.kgh.diffAbs, signClass(data.kgh.diffAbs))}
+                ${kpiBlock('Variação %',        data.kgh.diffPct, signClass(data.kgh.diffPct))}
               </div>
             </div>
           </div>
-        </section>
+        </section>`;
+    }
 
+    function renderSlide6(data) {
+      return `
         <section class="slide slide-6">
           <div class="layout">
-            <div class="header">
-              <div>
-                <h1 class="title">Resumo semanal</h1>
-              </div>
-              <div class="timestamp">Atualizado em<br>${escapeHtml(data.updatedAt)}</div>
-            </div>
+            ${slideHeader('Resumo semanal', '', data.updatedAt)}
             <div class="content panel table-wrap">
               <table>
                 <thead>
@@ -660,280 +655,123 @@
                     <th>%</th>
                   </tr>
                 </thead>
-                <tbody id="summary-table-body"></tbody>
+                <tbody>
+                  ${data.tableRows.map(row => `
+                    <tr>
+                      <td>${escapeHtml(row.semana)}</td>
+                      <td>${escapeHtml(formatInt(row.ref))}</td>
+                      <td>${escapeHtml(formatInt(row.cur))}</td>
+                      <td>${escapeHtml(formatSignedInt(row.difAbs))}</td>
+                      <td class="${row.difPct >= 0 ? 'text-good' : 'text-bad'}">${escapeHtml(formatSignedPercent(row.difPct))}</td>
+                    </tr>`).join('')}
+                </tbody>
               </table>
               <div class="totals">
-                <div class="kpi">
-                  <div class="kpi-label">TOTAL ${data.yearCurrent}</div>
-                  <div class="kpi-value medium">${escapeHtml(data.summary.totalCurrent)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Dif. total</div>
-                  <div class="kpi-value medium ${data.summary.diffAbsolute.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffAbsolute)}</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Dif. %</div>
-                  <div class="kpi-value medium ${data.summary.diffPercent.startsWith('+') ? 'text-good' : 'text-bad'}">${escapeHtml(data.summary.diffPercent)}</div>
-                </div>
+                ${kpiBlock(`TOTAL ${data.yearCurrent}`, data.summary.totalCurrent, 'medium')}
+                ${kpiBlock('Dif. total', data.summary.diffAbsolute, 'medium ' + signClass(data.summary.diffAbsolute))}
+                ${kpiBlock('Dif. %',     data.summary.diffPercent,  'medium ' + signClass(data.summary.diffPercent))}
               </div>
             </div>
           </div>
         </section>`;
-
-      document.getElementById('summary-table-body').innerHTML = data.tableRows.map(row => `
-        <tr>
-          <td>${escapeHtml(row.semana)}</td>
-          <td>${escapeHtml(formatInt(row.ref))}</td>
-          <td>${escapeHtml(formatInt(row.cur))}</td>
-          <td>${escapeHtml(formatSignedInt(row.difAbs))}</td>
-          <td class="${row.difPct >= 0 ? 'text-good' : 'text-bad'}">${escapeHtml(formatSignedPercent(row.difPct))}</td>
-        </tr>`).join('');
     }
 
-    function destroyIfExists(chart) {
-      if (chart) chart.destroy();
+    function renderDashboard(data) {
+      document.getElementById('app').className = '';
+      document.getElementById('app').innerHTML =
+        renderSlide1(data) +
+        renderSlide2(data) +
+        renderSlide3(data) +
+        renderSlide4(data) +
+        renderSlide5(data) +
+        renderSlide6(data);
     }
 
-    function baseOptions() {
-      return {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: {
-            labels: {
-              color: '#ffffff',
-              font: { size: 16 }
-            }
-          },
-          tooltip: {
-            enabled: true
-          }
-        },
-        scales: {
-          x: {
-            ticks: { color: '#ffffff', font: { size: 16 } },
-            grid: { color: '#333' }
-          },
-          y: {
-            ticks: { color: '#ffffff', font: { size: 14 } },
-            grid: { color: '#333' }
-          }
-        }
-      };
-    }
-
-    function drawAllCharts(data) {
-      drawChart1(data);
-      drawChart2(data);
-      drawChart3(data);
-      drawChart4(data);
-      drawChart5(data);
-    }
-
+    /* ─── CHART DRAWING ──────────────────────────────────────────────────── */
     function drawChart1(data) {
-      destroyIfExists(chart1);
-      const ctx = document.getElementById('chart1').getContext('2d');
-      chart1 = new Chart(ctx, {
+      drawChart('chart1', {
         type: 'bar',
         data: {
           labels: data.seriesRows.map(r => r.semana),
           datasets: [
-            {
-              label: String(data.yearReference),
-              data: data.seriesRows.map(r => r.yRef),
-              backgroundColor: '#60a5fa'
-            },
-            {
-              label: String(data.yearCurrent),
-              data: data.seriesRows.map(r => r.yCur),
-              backgroundColor: '#34d399'
-            }
+            { label: String(data.yearReference), data: data.seriesRows.map(r => r.yRef), backgroundColor: '#60a5fa' },
+            { label: String(data.yearCurrent),   data: data.seriesRows.map(r => r.yCur), backgroundColor: '#34d399' }
           ]
         },
-        options: {
-          ...baseOptions(),
-          plugins: {
-            ...baseOptions().plugins,
-            legend: {
-              labels: {
-                color: '#ffffff',
-                font: { size: 16 }
-              }
-            }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#ffffff', font: { size: 16 } },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Semana', color: '#ffffff', font: { size: 16 } }
-            },
-            y: {
-              ticks: { color: '#ffffff', font: { size: 14 } },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Produção (kg)', color: '#ffffff', font: { size: 16 } }
-            }
-          }
-        }
+        options: makeOptions({ xTitle: 'Semana', yTitle: 'Produção (kg)' })
       });
     }
 
     function drawChart2(data) {
-      destroyIfExists(chart2);
-      const ctx = document.getElementById('chart2').getContext('2d');
-      chart2 = new Chart(ctx, {
+      drawChart('chart2', {
         type: 'bar',
         data: {
           labels: data.tableRows.map(r => r.semana),
-          datasets: [{
-            label: 'Diferença (%)',
-            data: data.tableRows.map(r => r.difPct),
-            backgroundColor: '#f59e0b'
-          }]
+          datasets: [{ label: 'Diferença (%)', data: data.tableRows.map(r => r.difPct), backgroundColor: '#f59e0b' }]
         },
-        options: {
-          ...baseOptions(),
-          plugins: {
-            ...baseOptions().plugins,
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#ffffff', font: { size: 16 } },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Semana', color: '#ffffff', font: { size: 16 } }
-            },
-            y: {
-              ticks: {
-                color: '#ffffff',
-                font: { size: 14 },
-                callback: value => `${value}%`
-              },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Diferença (%)', color: '#ffffff', font: { size: 16 } }
-            }
-          }
-        }
+        options: makeOptions({
+          xTitle: 'Semana',
+          yTitle: 'Diferença (%)',
+          hideLegend: true,
+          yTickCallback: v => `${v}%`
+        })
       });
     }
 
     function drawChart3(data) {
-      destroyIfExists(chart3);
-      const ctx = document.getElementById('chart3').getContext('2d');
-      chart3 = new Chart(ctx, {
+      drawChart('chart3', {
         type: 'bar',
         data: {
-          labels: ['Prod/dia (kg)', 'Prod/hora (kg/h)'],
+          labels: ['Prod./dia (kg)', 'Prod./hora (kg/h)'],
           datasets: [{
             label: 'Valor',
             data: [toNumber(data.efficiency.perDay), toNumber(data.efficiency.perHour)],
             backgroundColor: '#a78bfa'
           }]
         },
-        options: {
-          ...baseOptions(),
-          indexAxis: 'y',
-          plugins: {
-            ...baseOptions().plugins,
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#ffffff', font: { size: 14 } },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Quantidade', color: '#ffffff', font: { size: 16 } }
-            },
-            y: {
-              ticks: { color: '#ffffff', font: { size: 18 } },
-              grid: { color: '#333' }
-            }
-          }
-        }
+        options: makeOptions({ isHorizontal: true, hideLegend: true, xTitle: 'Quantidade' })
       });
     }
 
     function drawChart4(data) {
-      destroyIfExists(chart4);
-      const ctx = document.getElementById('chart4').getContext('2d');
-      chart4 = new Chart(ctx, {
+      const range = niceAxisRange([data.waste.y2025, data.waste.y2026]);
+      drawChart('chart4', {
         type: 'bar',
         data: {
           labels: [String(data.yearReference), String(data.yearCurrent)],
-          datasets: [{
-            data: [data.waste.y2025, data.waste.y2026],
-            backgroundColor: '#4f7ac8',
-            barPercentage: 0.5,
-            categoryPercentage: 0.6
-          }]
+          datasets: [{ data: [data.waste.y2025, data.waste.y2026], backgroundColor: '#4f7ac8', barPercentage: 0.5, categoryPercentage: 0.6 }]
         },
-        options: {
-          ...baseOptions(),
-          plugins: {
-            ...baseOptions().plugins,
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#ffffff', font: { size: 16 } },
-              grid: { color: '#333' }
-            },
-            y: {
-              min: 50000,
-              max: 150000,
-              ticks: {
-                stepSize: 5000,
-                color: '#ffffff',
-                font: { size: 14 }
-              },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Desperdício (kg)', color: '#ffffff', font: { size: 16 } }
-            }
-          }
-        }
+        options: makeOptions({ hideLegend: true, yTitle: 'Desperdício (kg)', ...range })
       });
     }
 
     function drawChart5(data) {
-      destroyIfExists(chart5);
-      const ctx = document.getElementById('chart5').getContext('2d');
-      chart5 = new Chart(ctx, {
+      const range = niceAxisRange([data.kgh.y2025, data.kgh.y2026], 0.15, 10);
+      drawChart('chart5', {
         type: 'bar',
         data: {
           labels: [String(data.yearReference), String(data.yearCurrent)],
-          datasets: [{
-            data: [data.kgh.y2025, data.kgh.y2026],
-            backgroundColor: '#4f7ac8',
-            barPercentage: 0.5,
-            categoryPercentage: 0.6
-          }]
+          datasets: [{ data: [data.kgh.y2025, data.kgh.y2026], backgroundColor: '#4f7ac8', barPercentage: 0.5, categoryPercentage: 0.6 }]
         },
-        options: {
-          ...baseOptions(),
-          plugins: {
-            ...baseOptions().plugins,
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#ffffff', font: { size: 16 } },
-              grid: { color: '#333' }
-            },
-            y: {
-              min: 100,
-              max: 200,
-              ticks: {
-                stepSize: 20,
-                color: '#ffffff',
-                font: { size: 14 }
-              },
-              grid: { color: '#333' },
-              title: { display: true, text: 'Kg/hora', color: '#ffffff', font: { size: 16 } }
-            }
-          }
-        }
+        options: makeOptions({ hideLegend: true, yTitle: 'Kg/hora', ...range })
       });
     }
 
+    // Maps slide index (0-based) to its draw function; null = slide 6 (table, no chart)
+    const SLIDE_DRAW_FNS = [drawChart1, drawChart2, drawChart3, drawChart4, drawChart5, null];
+
+    function drawActiveChart(data) {
+      const slides = [...document.querySelectorAll('.slide')];
+      const idx = slides.findIndex(s => s.classList.contains('active'));
+      const fn = SLIDE_DRAW_FNS[idx];
+      if (fn) fn(data);
+    }
+
+    function drawAllCharts(data) {
+      SLIDE_DRAW_FNS.forEach(fn => fn && fn(data));
+    }
+
+    /* ─── ROTATION ───────────────────────────────────────────────────────── */
     function startRotation(rotationSeconds, data) {
       const slides = document.querySelectorAll('.slide');
       let current = 0;
@@ -942,11 +780,15 @@
         slides[current].classList.remove('active');
         current = (current + 1) % slides.length;
         slides[current].classList.add('active');
-
-        setTimeout(() => {
-          drawAllCharts(data);
-        }, 120);
+        // Only redraw the chart that just became visible
+        setTimeout(() => drawActiveChart(data), 120);
       }, rotationSeconds * 1000);
+    }
+
+    /* ─── UTILITIES ──────────────────────────────────────────────────────── */
+    function debounce(fn, ms) {
+      let timer;
+      return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
     }
 
     function formatInt(value) {
@@ -956,13 +798,15 @@
 
     function formatSignedInt(value) {
       const n = toNumber(value);
-      const formatted = formatInt(Math.abs(n));
-      return `${n >= 0 ? '+' : '-'}${formatted}`;
+      return `${n >= 0 ? '+' : '-'}${formatInt(Math.abs(n))}`;
     }
 
     function formatSignedPercent(value) {
       const n = toNumber(value);
-      const formatted = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(n));
+      const formatted = new Intl.NumberFormat('pt-PT', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      }).format(Math.abs(n));
       return `${n >= 0 ? '+' : '-'}${formatted}%`;
     }
 
@@ -973,6 +817,31 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    /* ─── ENTRY POINT ────────────────────────────────────────────────────── */
+    async function initDashboard() {
+      try {
+        const [kpisRaw, seriesRaw, resumoRaw] = await Promise.all([
+          fetchSheet('kpis'),
+          fetchSheet('series'),
+          fetchSheet('resumo')
+        ]);
+
+        const data = normalizeData(kpisRaw, seriesRaw, resumoRaw);
+
+        renderDashboard(data);
+        drawAllCharts(data);
+        startRotation(data.rotationSeconds || CONFIG.rotationSeconds, data);
+
+        // Debounced resize: only redraws the currently visible chart
+        window.addEventListener('resize', debounce(() => drawActiveChart(data), 150));
+
+      } catch (error) {
+        document.getElementById('app').className = 'error';
+        document.getElementById('app').innerHTML =
+          `Erro ao ler dados do Google Sheets.<br><br>${escapeHtml(error.message)}`;
+      }
     }
 
     initDashboard();
