@@ -735,6 +735,7 @@
 
     function drawChart4(data) {
       const range = niceAxisRange([data.waste.y2025, data.waste.y2026]);
+      range.min = 50000; // fixed floor — max stays data-driven
       drawChart('chart4', {
         type: 'bar',
         data: {
@@ -747,6 +748,7 @@
 
     function drawChart5(data) {
       const range = niceAxisRange([data.kgh.y2025, data.kgh.y2026], 0.15, 10);
+      range.min = 120; // fixed floor — max stays data-driven
       drawChart('chart5', {
         type: 'bar',
         data: {
